@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Симулятор рынка недвижимости</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <section class="hero-screen" id="start-screen">
+      <div class="hero-screen__content">
+        <div class="hero-screen__intro">
+          <span class="eyebrow">Учебный проект по экономике</span>
+          <h1>Симулятор рынка недвижимости в упрощённой экономической системе</h1>
+          <p class="hero-screen__lead">
+            Управляйте капиталом, стройте объекты, следите за ставкой и спросом, развивайте репутацию
+            и доведите портфель до уверенной победы к 20 кварталу.
+          </p>
+          <div class="hero-screen__actions">
+            <button class="button button--primary" id="start-game-button">Начать новую игру</button>
+            <button class="button button--secondary" id="continue-game-button">Продолжить сохранение</button>
+            <button class="button button--ghost" id="scroll-to-rules-button">Правила</button>
+          </div>
+          <div class="save-hint" id="save-hint"></div>
+        </div>
+
+        <div class="hero-screen__panel">
+          <div class="hero-stat">
+            <span class="hero-stat__label">Стартовый капитал</span>
+            <strong class="hero-stat__value">1 000 000</strong>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat__label">Цель</span>
+            <strong class="hero-stat__value">2 000 000+ к 20 кварталу</strong>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat__label">Доступные действия</span>
+            <strong class="hero-stat__value">1 решение за квартал</strong>
+          </div>
+          <div class="hero-tags">
+            <span class="tag">Жильё</span>
+            <span class="tag">Офис</span>
+            <span class="tag">Ритейл</span>
+            <span class="tag">События рынка</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <main class="main-layout">
+      <section class="game-screen is-hidden" id="game-screen">
+        <header class="topbar panel">
+          <div class="topbar__title">
+            <div>
+              <p class="topbar__eyebrow">Игровой экран</p>
+              <h2>Симулятор рынка недвижимости</h2>
+            </div>
+            <div class="topbar__links">
+              <button class="button button--ghost button--small" id="show-rules-button">Правила</button>
+              <button class="button button--ghost button--small" id="show-about-button">О проекте</button>
+            </div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-card__label">Квартал</span>
+              <strong class="metric-card__value" id="metric-quarter">1</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Деньги</span>
+              <strong class="metric-card__value" id="metric-money">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Репутация</span>
+              <strong class="metric-card__value" id="metric-reputation">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Спрос</span>
+              <strong class="metric-card__value" id="metric-demand">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Ставка</span>
+              <strong class="metric-card__value" id="metric-interest">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Суммарная прибыль</span>
+              <strong class="metric-card__value" id="metric-profit">0</strong>
+            </div>
+          </div>
+        </header>
+
+        <div class="dashboard-grid">
+          <aside class="panel sidebar">
+            <div class="panel-heading">
+              <h3>Панель действий</h3>
+              <p>За квартал можно выполнить только одно действие.</p>
+            </div>
+
+            <div class="action-group">
+              <h4>Строительство</h4>
+              <button class="button button--primary button--full" id="build-housing-button">Построить жильё за 250 000</button>
+              <button class="button button--primary button--full" id="build-office-button">Построить офис за 400 000</button>
+              <button class="button button--primary button--full" id="build-retail-button">Построить ритейл за 320 000</button>
+            </div>
+
+            <div class="action-group">
+              <h4>Улучшение объекта</h4>
+              <label class="field-label" for="upgrade-select">Выберите активный объект</label>
+              <select id="upgrade-select"></select>
+              <button class="button button--secondary button--full" id="upgrade-button">Улучшить за 80 000</button>
+            </div>
+
+            <div class="action-group">
+              <h4>Продажа объекта</h4>
+              <label class="field-label" for="sell-select">Выберите активный объект</label>
+              <select id="sell-select"></select>
+              <button class="button button--secondary button--full" id="sell-button">Продать объект</button>
+            </div>
+
+            <div class="action-group">
+              <h4>Финансовые решения</h4>
+              <div class="loan-box" id="loan-status-box"></div>
+              <button class="button button--accent button--full" id="loan-button">Взять кредит 300 000</button>
+              <button class="button button--ghost button--full" id="skip-turn-button">Пропустить ход</button>
+            </div>
+
+            <div class="action-group">
+              <h4>Управление игрой</h4>
+              <button class="button button--secondary button--full" id="new-game-button">Новая игра</button>
+              <button class="button button--danger button--full" id="reset-progress-button">Сбросить прогресс</button>
+            </div>
+          </aside>
+
+          <section class="panel portfolio-panel">
+            <div class="panel-heading">
+              <h3>Портфель недвижимости</h3>
+              <p>Карточки показывают текущую эффективность объектов с учётом спроса, репутации и ставки.</p>
+            </div>
+            <div class="properties-grid" id="properties-grid"></div>
+          </section>
+
+          <aside class="panel insights-panel">
+            <div class="panel-heading">
+              <h3>События и аналитика</h3>
+              <p>После каждого квартала рынок меняется, а история последних событий сохраняется.</p>
+            </div>
+
+            <section class="insight-card">
+              <h4>Последнее событие</h4>
+              <div id="latest-event-card"></div>
+            </section>
+
+            <section class="insight-card">
+              <h4>История последних 5 событий</h4>
+              <div class="event-history" id="event-history"></div>
+            </section>
+
+            <section class="insight-card">
+              <h4>Краткая сводка</h4>
+              <div class="summary-list" id="game-summary"></div>
+            </section>
+          </aside>
+        </div>
+
+        <section class="panel charts-panel">
+          <div class="panel-heading">
+            <h3>Динамика по кварталам</h3>
+          </div>
+
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-card__header">
+                <h4>Деньги</h4>
+                <span id="money-trend-label"></span>
+              </div>
+              <canvas id="money-chart" width="320" height="180"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card__header">
+                <h4>Спрос</h4>
+                <span id="demand-trend-label"></span>
+              </div>
+              <canvas id="demand-chart" width="320" height="180"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card__header">
+                <h4>Репутация</h4>
+                <span id="reputation-trend-label"></span>
+              </div>
+              <canvas id="reputation-chart" width="320" height="180"></canvas>
+            </div>
+          </div>
+
+          <div class="quarter-table-wrapper">
+            <table class="quarter-table">
+              <thead>
+                <tr>
+                  <th>Квартал</th>
+                  <th>Деньги</th>
+                  <th>Спрос</th>
+                  <th>Репутация</th>
+                  <th>Ставка</th>
+                </tr>
+              </thead>
+              <tbody id="timeline-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="info-section panel" id="rules-section">
+        <div class="panel-heading">
+          <h3>Правила</h3>
+          <p>Краткие условия игры и порядок расчёта квартала.</p>
+        </div>
+        <div class="info-grid">
+          <article class="info-card">
+            <h4>Цель</h4>
+            <p>Дойти до 20 квартала с капиталом выше 2 000 000 и репутацией не ниже 60.</p>
+          </article>
+          <article class="info-card">
+            <h4>Поражение</h4>
+            <p>Игра заканчивается поражением, если деньги уходят ниже нуля в любой момент после обработки квартала.</p>
+          </article>
+          <article class="info-card">
+            <h4>Действие за квартал</h4>
+            <p>Каждый ход можно только одно: строить, улучшать, продавать, брать кредит или пропускать квартал.</p>
+          </article>
+          <article class="info-card">
+            <h4>Формула дохода</h4>
+            <p>Доход зависит от базового дохода объекта, спроса, репутации и уровня развития.</p>
+          </article>
+          <article class="info-card">
+            <h4>Кредит</h4>
+            <p>Можно иметь только один кредит одновременно. Платёж списывается автоматически в конце квартала.</p>
+          </article>
+          <article class="info-card">
+            <h4>События</h4>
+            <p>Случайные рыночные события меняют спрос, ставку, репутацию и иногда напрямую влияют на деньги.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="info-section panel" id="about-section">
+        <div class="panel-heading">
+          <h3>О проекте</h3>
+        </div>
+        <div class="about-copy">
+          <p>
+            Проект моделирует рынок недвижимости в упрощённой экономике и показывает, как решения по
+            инвестициям, кредитованию и управлению объектами влияют на капитал, репутацию и рыночные условия
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="modal is-hidden" id="endgame-modal">
+    <div class="modal__backdrop"></div>
+    <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="endgame-title">
+      <span class="modal__eyebrow" id="endgame-result-badge">Итог</span>
+      <h2 id="endgame-title">Игра завершена</h2>
+      <p class="modal__text" id="endgame-description"></p>
+      <div class="endgame-metrics" id="endgame-metrics"></div>
+      <button class="button button--primary button--full" id="restart-from-modal-button">Начать заново</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
