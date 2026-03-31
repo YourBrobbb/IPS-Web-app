@@ -254,9 +254,7 @@
 ├── index.html
 ├── style.css
 ├── script.js
-├── LLMconsult.md
-├── real-estate-simulator-full-description.md
-└── real-estate-simulator-full-description.pdf
+└── LLMconsult.md
 ```
 
 
