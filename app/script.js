@@ -3,6 +3,14 @@ const MAX_QUARTERS = 20;
 const LOAN_AMOUNT = 300000;
 const LOAN_TERM = 8;
 const UPGRADE_COST = 80000;
+const VICTORY_MONEY = 2000000;
+const VICTORY_REPUTATION = 60;
+const VICTORY_ACTIVE_PROPERTIES = 4;
+const VICTORY_TOTAL_PROFIT = 700000;
+const VICTORY_UPGRADES = 2;
+const SALE_TRANSACTION_FEE_RATE = 0.08;
+const EARLY_SALE_DISCOUNT_RATE = 0.14;
+const FULL_PRICE_HOLDING_QUARTERS = 4;
 
 const PROPERTY_TYPES = {
   housing: {
@@ -42,7 +50,7 @@ const EVENT_POOL = [
     title: "Спад потребительской активности",
     description: "Потребители осторожнее тратят деньги, а арендаторы откладывают решения.",
     category: "Рынок",
-    effect: { demand: -7, interestRate: 0, reputation: 0, money: 0 }
+    effect: { demand: -8, interestRate: 0, reputation: 0, money: 0 }
   },
   {
     title: "Снижение процентной ставки",
@@ -60,25 +68,25 @@ const EVENT_POOL = [
     title: "Государственная поддержка",
     description: "Программа поддержки девелоперов принесла субсидию и улучшила восприятие бренда.",
     category: "Политика",
-    effect: { demand: 4, interestRate: -1, reputation: 3, money: 90000 }
+    effect: { demand: 4, interestRate: -1, reputation: 3, money: 70000 }
   },
   {
     title: "Проверка объекта",
     description: "Регулятор нашёл недочёты в документации и потребовал оперативно исправить замечания.",
     category: "Репутация",
-    effect: { demand: -2, interestRate: 0, reputation: -6, money: -70000 }
+    effect: { demand: -2, interestRate: 0, reputation: -6, money: -60000 }
   },
   {
     title: "Удачная PR-кампания",
     description: "Информационная кампания усилила доверие к компании и привела новых клиентов.",
     category: "Маркетинг",
-    effect: { demand: 5, interestRate: 0, reputation: 8, money: -30000 }
+    effect: { demand: 5, interestRate: 0, reputation: 7, money: -45000 }
   },
   {
     title: "Инфляционное давление",
     description: "На рынке выросли цены, часть арендаторов сокращает активность.",
     category: "Макроэкономика",
-    effect: { demand: -4, interestRate: 1, reputation: 0, money: -40000 }
+    effect: { demand: -4, interestRate: 2, reputation: 0, money: -35000 }
   },
   {
     title: "Ремонт инфраструктуры",
@@ -90,7 +98,7 @@ const EVENT_POOL = [
     title: "Рост затрат на обслуживание",
     description: "Подрядчики подняли цены на сервис и обслуживание помещений.",
     category: "Издержки",
-    effect: { demand: 0, interestRate: 1, reputation: -1, money: -50000 }
+    effect: { demand: 0, interestRate: 0, reputation: -1, money: -60000 }
   },
   {
     title: "Приток бизнеса в район",
@@ -102,7 +110,7 @@ const EVENT_POOL = [
     title: "Сокращение спроса на коммерческие площади",
     description: "Часть компаний переводит команды в удалённый формат и сокращает площади.",
     category: "Бизнес",
-    effect: { demand: -8, interestRate: 0, reputation: -2, money: 0 }
+    effect: { demand: -8, interestRate: 0, reputation: 0, money: 0 }
   },
   {
     title: "Льготное кредитование",
@@ -251,6 +259,7 @@ function cacheElements() {
   elements.buildOfficeButton = document.getElementById("build-office-button");
   elements.buildRetailButton = document.getElementById("build-retail-button");
   elements.nextActionCard = document.getElementById("next-action-card");
+  elements.advisorPanel = document.getElementById("advisor-panel");
   elements.turnSummaryCard = document.getElementById("turn-summary-card");
   elements.portfolioSummaryCard = document.getElementById("portfolio-summary-card");
   elements.upgradeSelect = document.getElementById("upgrade-select");
@@ -298,6 +307,7 @@ function bindEvents() {
   elements.scrollToRulesButton.addEventListener("click", () => scrollToSection(elements.rulesSection));
   elements.showRulesButton.addEventListener("click", () => scrollToSection(elements.rulesSection));
   elements.showAboutButton.addEventListener("click", () => scrollToSection(elements.aboutSection));
+  elements.advisorPanel.addEventListener("click", handleAdvisorPanelClick);
 
   elements.buildHousingButton.addEventListener("click", () => performAction(() => buildProperty("housing")));
   elements.buildOfficeButton.addEventListener("click", () => performAction(() => buildProperty("office")));
@@ -345,7 +355,8 @@ function createInitialState() {
     resultType: null,
     resultMessage: "",
     ui: {
-      wasGameVisible: false
+      wasGameVisible: false,
+      advisorEnabled: true
     }
   };
 }
@@ -616,11 +627,12 @@ function applyLoanPayment() {
 
 function applyRandomEvent() {
   const eventTemplate = EVENT_POOL[Math.floor(Math.random() * EVENT_POOL.length)];
+  const directMoneyEffect = Math.round((eventTemplate.effect.money || 0) * getEventMoneyExposure());
   const appliedEffect = {
     demand: eventTemplate.effect.demand || 0,
     interestRate: eventTemplate.effect.interestRate || 0,
     reputation: eventTemplate.effect.reputation || 0,
-    money: eventTemplate.effect.money || 0
+    money: directMoneyEffect
   };
 
   state.demand = clamp(state.demand + appliedEffect.demand, 0, 100);
@@ -682,13 +694,14 @@ function evaluateOutcome(processedQuarter) {
 
   if (processedQuarter >= MAX_QUARTERS) {
     state.gameOver = true;
+    const victoryStatus = getVictoryStatus();
 
-    if (state.money > 2000000 && state.reputation >= 60) {
+    if (victoryStatus.isVictory) {
       state.resultType = "victory";
-      state.resultMessage = "Портфель вырос до сильной позиции, а репутация поддержала успех на рынке.";
+      state.resultMessage = "Портфель вырос до сильной позиции: капитал, репутация, активы и суммарная прибыль подтверждают устойчивую стратегию.";
     } else {
       state.resultType = "neutral";
-      state.resultMessage = "Вы дошли до 20 квартала, но не выполнили все условия уверенной победы.";
+      state.resultMessage = `Вы дошли до 20 квартала, но не выполнили все условия уверенной победы. Не хватает: ${getUnmetVictoryText(victoryStatus.requirements)}.`;
     }
 
     return state.resultType;
@@ -714,7 +727,15 @@ function calculateNetIncome(property) {
 }
 
 function calculateSalePrice(property) {
-  return property.baseCost * (0.8 + state.demand / 200) * (1 + property.level * 0.05);
+  const demandMultiplier = 0.72 + state.demand / 250;
+  const levelMultiplier = 1 + (property.level - 1) * 0.08;
+  const holdingQuarters = Math.max(0, state.quarter - property.createdAtQuarter);
+  const holdingMultiplier = holdingQuarters >= FULL_PRICE_HOLDING_QUARTERS
+    ? 1
+    : 1 - EARLY_SALE_DISCOUNT_RATE;
+  const transactionMultiplier = 1 - SALE_TRANSACTION_FEE_RATE;
+
+  return property.baseCost * demandMultiplier * levelMultiplier * holdingMultiplier * transactionMultiplier;
 }
 
 function findActiveProperty(propertyId) {
@@ -723,6 +744,64 @@ function findActiveProperty(propertyId) {
 
 function getActiveProperties() {
   return state.properties.filter((property) => property.status === "active");
+}
+
+function getUpgradeCount() {
+  return state.properties.reduce((sum, property) => sum + Math.max(property.level - 1, 0), 0);
+}
+
+function getEventMoneyExposure() {
+  const activePropertiesCount = getActiveProperties().length;
+
+  if (!activePropertiesCount) {
+    return 0;
+  }
+
+  return Math.min(1, 0.5 + activePropertiesCount * 0.17);
+}
+
+function getVictoryStatus() {
+  const activePropertiesCount = getActiveProperties().length;
+  const upgradeCount = getUpgradeCount();
+  const requirements = [
+    {
+      label: `капитал выше ${formatMoney(VICTORY_MONEY)}`,
+      met: state.money > VICTORY_MONEY
+    },
+    {
+      label: `репутация не ниже ${VICTORY_REPUTATION}/100`,
+      met: state.reputation >= VICTORY_REPUTATION
+    },
+    {
+      label: `минимум ${VICTORY_ACTIVE_PROPERTIES} активных объекта`,
+      met: activePropertiesCount >= VICTORY_ACTIVE_PROPERTIES
+    },
+    {
+      label: `суммарная прибыль портфеля после платежей не ниже ${formatMoney(VICTORY_TOTAL_PROFIT)}`,
+      met: state.totalProfit >= VICTORY_TOTAL_PROFIT
+    },
+    {
+      label: `минимум ${VICTORY_UPGRADES} улучшения объектов`,
+      met: upgradeCount >= VICTORY_UPGRADES
+    },
+    {
+      label: "нет активного кредита",
+      met: !state.loan.active
+    }
+  ];
+
+  return {
+    requirements,
+    isVictory: requirements.every((requirement) => requirement.met)
+  };
+}
+
+function getUnmetVictoryText(requirements) {
+  const unmetRequirements = requirements
+    .filter((requirement) => !requirement.met)
+    .map((requirement) => requirement.label);
+
+  return unmetRequirements.length ? unmetRequirements.join("; ") : "нет";
 }
 
 function getNextPropertyId() {
@@ -768,6 +847,7 @@ function renderActionControls() {
   elements.sellButton.disabled = gameLocked || activeProperties.length === 0;
 
   renderActionRecommendation(activeProperties, gameLocked);
+  renderStrategicAdvisor(activeProperties, gameLocked);
   renderControlSummaries(activeProperties);
   renderLoanStatus();
 }
@@ -1988,14 +2068,16 @@ function renderEventHistory() {
 function renderSummary() {
   const activeProperties = getActiveProperties();
   const soldProperties = state.properties.filter((property) => property.status === "sold").length;
+  const victoryStatus = getVictoryStatus();
   const averageNetIncome = activeProperties.length
     ? Math.round(activeProperties.reduce((sum, property) => sum + calculateNetIncome(property), 0) / activeProperties.length)
     : 0;
-  const victoryTargetMoney = 2000000 - state.money;
-  const reputationGap = 60 - state.reputation;
   const lastQuarterText = state.lastQuarterSummary
     ? `Доход ${formatMoney(state.lastQuarterSummary.portfolioIncome)}, расходы ${formatMoney(state.lastQuarterSummary.portfolioExpense)}, кредит ${formatMoney(state.lastQuarterSummary.loanPayment)}.`
     : "Квартал ещё не обработан, показатели находятся в стартовом состоянии.";
+  const victoryRequirementsText = victoryStatus.requirements
+    .map((requirement) => `${requirement.met ? "Выполнено" : "Нужно"}: ${requirement.label}`)
+    .join(". ");
 
   elements.gameSummary.innerHTML = `
     <div class="summary-item">
@@ -2016,7 +2098,7 @@ function renderSummary() {
     </div>
     <div class="summary-item">
       <strong>Прогресс к победе</strong>
-      <span>${victoryTargetMoney > 0 ? `До цели по капиталу не хватает ${formatMoney(victoryTargetMoney)}.` : "Цель по капиталу уже выполнена."} ${reputationGap > 0 ? `До нужной репутации осталось ${reputationGap} пунктов.` : "Требуемая репутация уже достигнута."}</span>
+      <span>${victoryRequirementsText}.</span>
     </div>
   `;
 }
@@ -2212,6 +2294,10 @@ function openEndgameModal() {
     <div class="endgame-metric">
       <span>Активные объекты</span>
       <strong>${getActiveProperties().length}</strong>
+    </div>
+    <div class="endgame-metric">
+      <span>Улучшения</span>
+      <strong>${getUpgradeCount()}</strong>
     </div>
     <div class="endgame-metric">
       <span>Последний квартал</span>
