@@ -19,7 +19,6 @@
           </p>
           <div class="hero-screen__actions">
             <button class="button button--primary" id="start-game-button">Начать новую игру</button>
-            <button class="button button--secondary" id="continue-game-button">Продолжить сохранение</button>
             <button class="button button--ghost" id="scroll-to-rules-button">Правила</button>
           </div>
           <div class="save-hint" id="save-hint"></div>
@@ -84,54 +83,100 @@
               <strong class="metric-card__value" id="metric-interest">0</strong>
             </div>
             <div class="metric-card">
-              <span class="metric-card__label">Суммарная прибыль</span>
+              <span class="metric-card__label">Прибыль</span>
               <strong class="metric-card__value" id="metric-profit">0</strong>
             </div>
           </div>
         </header>
 
-        <div class="dashboard-grid">
-          <aside class="panel sidebar">
-            <div class="panel-heading">
-              <h3>Панель действий</h3>
-              <p>За квартал можно выполнить только одно действие.</p>
+        <div class="game-board">
+          <aside class="panel decision-panel">
+            <div class="panel-heading decision-heading">
+              <div>
+                <p class="topbar__eyebrow">Следующий ход</p>
+                <h3>Центр решений</h3>
+                <p>Выберите одно действие. Карта справа сразу покажет результат.</p>
+              </div>
+              <div class="next-action-card" id="next-action-card"></div>
             </div>
 
-            <div class="action-group">
+            <div class="action-group action-group--primary">
               <h4>Строительство</h4>
-              <button class="button button--primary button--full" id="build-housing-button">Построить жильё за 250 000</button>
-              <button class="button button--primary button--full" id="build-office-button">Построить офис за 400 000</button>
-              <button class="button button--primary button--full" id="build-retail-button">Построить ритейл за 320 000</button>
+              <div class="quick-action-grid">
+                <button class="button button--primary button--full action-card-button" id="build-housing-button">
+                  <span>Построить жильё</span>
+                  <strong>250 000</strong>
+                  <small>Стабильный старт</small>
+                </button>
+                <button class="button button--primary button--full action-card-button" id="build-office-button">
+                  <span>Построить офис</span>
+                  <strong>400 000</strong>
+                  <small>Максимум дохода</small>
+                </button>
+                <button class="button button--primary button--full action-card-button" id="build-retail-button">
+                  <span>Построить ритейл</span>
+                  <strong>320 000</strong>
+                  <small>Баланс цены</small>
+                </button>
+              </div>
             </div>
 
-            <div class="action-group">
-              <h4>Улучшение объекта</h4>
+            <div class="action-group object-control-group">
+              <h4>Объект</h4>
               <label class="field-label" for="upgrade-select">Выберите активный объект</label>
               <select id="upgrade-select"></select>
-              <button class="button button--secondary button--full" id="upgrade-button">Улучшить за 80 000</button>
+              <select class="mirror-select" id="sell-select" aria-hidden="true" tabindex="-1"></select>
+              <div class="dual-action-grid">
+                <button class="button button--secondary button--full" id="upgrade-button">Улучшить за 80 000</button>
+                <button class="button button--secondary button--full" id="sell-button">Продать</button>
+              </div>
             </div>
 
-            <div class="action-group">
-              <h4>Продажа объекта</h4>
-              <label class="field-label" for="sell-select">Выберите активный объект</label>
-              <select id="sell-select"></select>
-              <button class="button button--secondary button--full" id="sell-button">Продать объект</button>
-            </div>
-
-            <div class="action-group">
-              <h4>Финансовые решения</h4>
+            <div class="action-group turn-control-group">
+              <h4>Ход и финансы</h4>
+              <div class="control-summary-grid">
+                <div class="control-summary-card" id="turn-summary-card"></div>
+                <div class="control-summary-card" id="portfolio-summary-card"></div>
+              </div>
               <div class="loan-box" id="loan-status-box"></div>
-              <button class="button button--accent button--full" id="loan-button">Взять кредит 300 000</button>
-              <button class="button button--ghost button--full" id="skip-turn-button">Пропустить ход</button>
+              <div class="dual-action-grid">
+                <button class="button button--accent button--full" id="loan-button">Взять кредит 300 000</button>
+                <button class="button button--primary button--full" id="skip-turn-button">Пропустить ход</button>
+              </div>
             </div>
 
-            <div class="action-group">
-              <h4>Управление игрой</h4>
+            <div class="game-management-row">
               <button class="button button--secondary button--full" id="new-game-button">Новая игра</button>
-              <button class="button button--danger button--full" id="reset-progress-button">Сбросить прогресс</button>
+              <button class="button button--danger button--full" id="reset-progress-button">Сбросить</button>
             </div>
           </aside>
 
+          <section class="city-panel panel">
+            <div class="city-panel__header">
+              <div>
+                <p class="topbar__eyebrow">Городская сцена</p>
+                <h3>Карта инвестиционного района</h3>
+              </div>
+              <div class="city-legend">
+                <span class="legend-item legend-item--housing">Жильё</span>
+                <span class="legend-item legend-item--office">Офис</span>
+                <span class="legend-item legend-item--retail">Ритейл</span>
+                <span class="legend-item legend-item--sold">Продано</span>
+              </div>
+            </div>
+
+            <div class="city-layout">
+              <div class="city-map" id="city-map" aria-label="Визуальная карта объектов недвижимости"></div>
+              <aside class="city-sidebar">
+                <div class="scene-card" id="city-market-board"></div>
+                <div class="scene-card" id="quarter-flow-board"></div>
+                <div class="scene-card" id="visual-event-board"></div>
+              </aside>
+            </div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid">
           <section class="panel portfolio-panel">
             <div class="panel-heading">
               <h3>Портфель недвижимости</h3>
@@ -143,7 +188,7 @@
           <aside class="panel insights-panel">
             <div class="panel-heading">
               <h3>События и аналитика</h3>
-              <p>После каждого квартала рынок меняется, а история последних событий сохраняется.</p>
+              <p>После каждого квартала рынок меняется, а последние события остаются в истории.</p>
             </div>
 
             <section class="insight-card">
@@ -265,7 +310,10 @@
       <h2 id="endgame-title">Игра завершена</h2>
       <p class="modal__text" id="endgame-description"></p>
       <div class="endgame-metrics" id="endgame-metrics"></div>
-      <button class="button button--primary button--full" id="restart-from-modal-button">Начать заново</button>
+      <div class="modal__actions">
+        <button class="button button--primary button--full" id="restart-from-modal-button">Начать заново</button>
+        <button class="button button--secondary button--full" id="back-to-menu-button">Вернуться в меню</button>
+      </div>
     </div>
   </div>
 

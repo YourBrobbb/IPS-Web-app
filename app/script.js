@@ -118,8 +118,90 @@ const EVENT_POOL = [
   }
 ];
 
+const CITY_GRID = { columns: 9, rows: 8 };
+
+const CITY_PLOTS = [
+  { name: "Северный двор", x: 0, y: 0, zone: "residential" },
+  { name: "Садовый квартал", x: 1, y: 0, zone: "park" },
+  { name: "Деловая башня", x: 3, y: 0, zone: "business" },
+  { name: "Финансовый фасад", x: 4, y: 0, zone: "business" },
+  { name: "Витринная улица", x: 6, y: 0, zone: "commerce" },
+  { name: "Речной квартал", x: 7, y: 0, zone: "waterfront" },
+  { name: "Старый район", x: 0, y: 2, zone: "residential" },
+  { name: "Биржевой блок", x: 3, y: 2, zone: "business" },
+  { name: "Площадь арендаторов", x: 4, y: 2, zone: "park" },
+  { name: "Торговая линия", x: 6, y: 2, zone: "commerce" },
+  { name: "Набережная", x: 8, y: 2, zone: "waterfront" },
+  { name: "Южный двор", x: 0, y: 4, zone: "residential" },
+  { name: "Транспортный узел", x: 1, y: 4, zone: "commerce" },
+  { name: "Кампус", x: 3, y: 4, zone: "park" },
+  { name: "Офисный парк", x: 4, y: 4, zone: "business" },
+  { name: "Молл-стрит", x: 6, y: 4, zone: "commerce" },
+  { name: "Новый сектор", x: 8, y: 4, zone: "residential" },
+  { name: "Променад", x: 0, y: 7, zone: "waterfront" },
+  { name: "Южный парк", x: 1, y: 7, zone: "park" },
+  { name: "Городские ворота", x: 3, y: 7, zone: "business" },
+  { name: "Ритейл-плаза", x: 4, y: 7, zone: "commerce" },
+  { name: "Речной фасад", x: 6, y: 7, zone: "waterfront" },
+  { name: "Парк сделок", x: 8, y: 7, zone: "park" }
+];
+
+const CITY_ROADS = [
+  ...Array.from({ length: CITY_GRID.columns }, (_, x) => ({ x, y: 3 })),
+  ...Array.from({ length: CITY_GRID.columns }, (_, x) => ({ x, y: 6 })),
+  ...Array.from({ length: CITY_GRID.rows }, (_, y) => ({ x: 2, y })),
+  ...Array.from({ length: CITY_GRID.rows }, (_, y) => ({ x: 5, y })),
+  ...Array.from({ length: 4 }, (_, index) => ({ x: index + 5, y: index }))
+];
+
+const CITY_ROAD_KEYS = new Set(CITY_ROADS.map((road) => `${road.x}:${road.y}`));
+
+const CITY_TRAFFIC_ROUTES = [
+  {
+    color: "#df5b4f",
+    speed: 0.000055,
+    offset: 0,
+    points: [{ x: -0.4, y: 3.5 }, { x: 9.3, y: 3.5 }]
+  },
+  {
+    color: "#e7b84a",
+    speed: 0.000046,
+    offset: 0.32,
+    points: [{ x: 9.2, y: 6.5 }, { x: -0.3, y: 6.5 }]
+  },
+  {
+    color: "#4b83cf",
+    speed: 0.00005,
+    offset: 0.58,
+    points: [{ x: 2.5, y: -0.5 }, { x: 2.5, y: 8.4 }]
+  },
+  {
+    color: "#ffffff",
+    speed: 0.000042,
+    offset: 0.77,
+    points: [{ x: 5.5, y: 8.2 }, { x: 5.5, y: -0.4 }]
+  }
+];
+
+const EVENT_SCENE_MAP = {
+  "Спрос": { className: "city-map--growth", label: "Покупательский поток" },
+  "Рынок": { className: "city-map--risk", label: "Просадка активности" },
+  "Финансы": { className: "city-map--finance", label: "Финансовый импульс" },
+  "Политика": { className: "city-map--growth", label: "Поддержка рынка" },
+  "Репутация": { className: "city-map--risk", label: "Проверка доверия" },
+  "Маркетинг": { className: "city-map--growth", label: "Медийный всплеск" },
+  "Макроэкономика": { className: "city-map--risk", label: "Макроэкономическое давление" },
+  "Инфраструктура": { className: "city-map--growth", label: "Обновление среды" },
+  "Издержки": { className: "city-map--risk", label: "Рост затрат" },
+  "Бизнес": { className: "city-map--finance", label: "Деловая активность" },
+  "Город": { className: "city-map--culture", label: "Городской поток" }
+};
+
 const elements = {};
 let state = null;
+let cityAnimationFrameId = null;
+let citySceneCache = null;
+let cityHitAreas = [];
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -154,7 +236,6 @@ function cacheElements() {
   elements.gameScreen = document.getElementById("game-screen");
   elements.saveHint = document.getElementById("save-hint");
   elements.startGameButton = document.getElementById("start-game-button");
-  elements.continueGameButton = document.getElementById("continue-game-button");
   elements.scrollToRulesButton = document.getElementById("scroll-to-rules-button");
   elements.showRulesButton = document.getElementById("show-rules-button");
   elements.showAboutButton = document.getElementById("show-about-button");
@@ -169,6 +250,9 @@ function cacheElements() {
   elements.buildHousingButton = document.getElementById("build-housing-button");
   elements.buildOfficeButton = document.getElementById("build-office-button");
   elements.buildRetailButton = document.getElementById("build-retail-button");
+  elements.nextActionCard = document.getElementById("next-action-card");
+  elements.turnSummaryCard = document.getElementById("turn-summary-card");
+  elements.portfolioSummaryCard = document.getElementById("portfolio-summary-card");
   elements.upgradeSelect = document.getElementById("upgrade-select");
   elements.upgradeButton = document.getElementById("upgrade-button");
   elements.sellSelect = document.getElementById("sell-select");
@@ -183,6 +267,10 @@ function cacheElements() {
   elements.latestEventCard = document.getElementById("latest-event-card");
   elements.eventHistory = document.getElementById("event-history");
   elements.gameSummary = document.getElementById("game-summary");
+  elements.cityMap = document.getElementById("city-map");
+  elements.cityMarketBoard = document.getElementById("city-market-board");
+  elements.quarterFlowBoard = document.getElementById("quarter-flow-board");
+  elements.visualEventBoard = document.getElementById("visual-event-board");
 
   elements.moneyChart = document.getElementById("money-chart");
   elements.demandChart = document.getElementById("demand-chart");
@@ -199,14 +287,14 @@ function cacheElements() {
   elements.endgameDescription = document.getElementById("endgame-description");
   elements.endgameMetrics = document.getElementById("endgame-metrics");
   elements.restartFromModalButton = document.getElementById("restart-from-modal-button");
+  elements.backToMenuButton = document.getElementById("back-to-menu-button");
 
   elements.rulesSection = document.getElementById("rules-section");
   elements.aboutSection = document.getElementById("about-section");
 }
 
 function bindEvents() {
-  elements.startGameButton.addEventListener("click", () => startNewGame({ askConfirmation: hasSavedGame() }));
-  elements.continueGameButton.addEventListener("click", continueSavedGame);
+  elements.startGameButton.addEventListener("click", () => startNewGame());
   elements.scrollToRulesButton.addEventListener("click", () => scrollToSection(elements.rulesSection));
   elements.showRulesButton.addEventListener("click", () => scrollToSection(elements.rulesSection));
   elements.showAboutButton.addEventListener("click", () => scrollToSection(elements.aboutSection));
@@ -214,14 +302,16 @@ function bindEvents() {
   elements.buildHousingButton.addEventListener("click", () => performAction(() => buildProperty("housing")));
   elements.buildOfficeButton.addEventListener("click", () => performAction(() => buildProperty("office")));
   elements.buildRetailButton.addEventListener("click", () => performAction(() => buildProperty("retail")));
+  elements.upgradeSelect.addEventListener("change", syncSellSelectWithVisibleObject);
   elements.upgradeButton.addEventListener("click", () => performAction(() => upgradeProperty(Number(elements.upgradeSelect.value))));
   elements.sellButton.addEventListener("click", () => performAction(() => sellProperty(Number(elements.sellSelect.value))));
   elements.loanButton.addEventListener("click", () => performAction(takeLoan));
   elements.skipTurnButton.addEventListener("click", () => performAction(skipTurn));
 
-  elements.newGameButton.addEventListener("click", () => startNewGame({ askConfirmation: true }));
+  elements.newGameButton.addEventListener("click", () => startNewGame());
   elements.resetProgressButton.addEventListener("click", resetProgress);
-  elements.restartFromModalButton.addEventListener("click", () => startNewGame({ askConfirmation: false }));
+  elements.restartFromModalButton.addEventListener("click", startNewGame);
+  elements.backToMenuButton.addEventListener("click", returnToMenuFromModal);
 }
 
 function createInitialState() {
@@ -287,15 +377,7 @@ function normalizeLoadedState(rawState) {
   return normalizedState;
 }
 
-function startNewGame(options = {}) {
-  const { askConfirmation = false } = options;
-  if (askConfirmation && hasSavedGame()) {
-    const confirmed = window.confirm("Начать новую игру? Текущее сохранение будет перезаписано.");
-    if (!confirmed) {
-      return;
-    }
-  }
-
+function startNewGame() {
   state = createInitialState();
   saveGame(true);
   closeEndgameModal();
@@ -304,27 +386,8 @@ function startNewGame(options = {}) {
   showToast("Новая игра началась. Первый квартал готов к решению.", "success");
 }
 
-function continueSavedGame() {
-  const savedState = loadGame();
-  if (!savedState) {
-    showToast("Сохранение не найдено. Запустите новую игру.", "warning");
-    updateStartScreen();
-    return;
-  }
-
-  state = normalizeLoadedState(savedState);
-  showGameScreen(true);
-  renderAll();
-
-  if (state.gameOver) {
-    openEndgameModal();
-  } else {
-    showToast("Сохранение загружено.", "info");
-  }
-}
-
 function resetProgress() {
-  const confirmed = window.confirm("Удалить сохранение и сбросить весь прогресс?");
+  const confirmed = window.confirm("Сбросить текущую игру и вернуться в меню?");
   if (!confirmed) {
     return;
   }
@@ -669,6 +732,7 @@ function getNextPropertyId() {
 function renderAll() {
   renderMetrics();
   renderActionControls();
+  renderCityScene();
   renderProperties();
   renderLatestEvent();
   renderEventHistory();
@@ -693,6 +757,7 @@ function renderActionControls() {
 
   populatePropertySelect(elements.upgradeSelect, activeProperties, "Нет объектов для улучшения");
   populatePropertySelect(elements.sellSelect, activeProperties, "Нет объектов для продажи");
+  syncSellSelectWithVisibleObject();
 
   elements.buildHousingButton.disabled = gameLocked;
   elements.buildOfficeButton.disabled = gameLocked;
@@ -702,23 +767,141 @@ function renderActionControls() {
   elements.upgradeButton.disabled = gameLocked || activeProperties.length === 0;
   elements.sellButton.disabled = gameLocked || activeProperties.length === 0;
 
+  renderActionRecommendation(activeProperties, gameLocked);
+  renderControlSummaries(activeProperties);
   renderLoanStatus();
+}
+
+function syncSellSelectWithVisibleObject() {
+  if (!elements.upgradeSelect || !elements.sellSelect || elements.sellSelect.disabled) {
+    return;
+  }
+
+  elements.sellSelect.value = elements.upgradeSelect.value;
+}
+
+function renderActionRecommendation(activeProperties, gameLocked) {
+  if (!elements.nextActionCard) {
+    return;
+  }
+
+  const recommendation = getActionRecommendation(activeProperties, gameLocked);
+  elements.nextActionCard.innerHTML = `
+    <span>${recommendation.label}</span>
+    <strong>${recommendation.title}</strong>
+    <p>${recommendation.reason}</p>
+  `;
+}
+
+function getActionRecommendation(activeProperties, gameLocked) {
+  if (gameLocked) {
+    return {
+      label: "Игра завершена",
+      title: "Посмотрите итог",
+      reason: "Начните новую игру, если хотите попробовать другую стратегию."
+    };
+  }
+
+  if (!activeProperties.length) {
+    return {
+      label: "Лучший старт",
+      title: "Построить жильё",
+      reason: "Недорого, быстро начинает приносить стабильную прибыль."
+    };
+  }
+
+  if (state.money < PROPERTY_TYPES.housing.baseCost && !state.loan.active) {
+    return {
+      label: "Нехватка денег",
+      title: "Взять кредит",
+      reason: "Капитала мало для строительства, кредит вернёт выбор действий."
+    };
+  }
+
+  if (state.reputation < 60 && state.money >= UPGRADE_COST) {
+    return {
+      label: "Репутация важна",
+      title: "Улучшить объект",
+      reason: "Улучшение повышает уровень здания и помогает дойти до условия победы."
+    };
+  }
+
+  if (state.demand >= 70 && state.money >= PROPERTY_TYPES.office.baseCost) {
+    return {
+      label: "Высокий спрос",
+      title: "Построить офис",
+      reason: "При сильном спросе офис даёт заметный квартальный доход."
+    };
+  }
+
+  if (state.money >= PROPERTY_TYPES.retail.baseCost) {
+    return {
+      label: "Безопасный рост",
+      title: "Построить ритейл",
+      reason: "Хороший баланс стоимости, дохода и риска для расширения портфеля."
+    };
+  }
+
+  if (state.money >= PROPERTY_TYPES.housing.baseCost) {
+    return {
+      label: "Доступное расширение",
+      title: "Построить жильё",
+      reason: "Самый дешёвый объект поможет нарастить доход без кредита."
+    };
+  }
+
+  return {
+    label: "Пауза без риска",
+    title: "Пропустить ход",
+    reason: "Если денег не хватает на сильное действие, можно дождаться дохода объектов."
+  };
+}
+
+function renderControlSummaries(activeProperties) {
+  if (elements.turnSummaryCard) {
+    if (!state.lastQuarterSummary) {
+      elements.turnSummaryCard.innerHTML = `
+        <span>Прошлый квартал</span>
+        <strong>ещё нет</strong>
+        <small>Сделайте первое действие</small>
+      `;
+    } else {
+      const summary = state.lastQuarterSummary;
+      const netResult = summary.netIncome - summary.loanPayment;
+      elements.turnSummaryCard.innerHTML = `
+        <span>Прошлый квартал</span>
+        <strong>${formatSignedMoney(netResult)}</strong>
+        <small>${escapeHtml(summary.actionLabel)}</small>
+      `;
+    }
+  }
+
+  if (elements.portfolioSummaryCard) {
+    const expectedNetIncome = activeProperties.reduce((sum, property) => {
+      return sum + Math.round(calculateIncome(property) - calculateExpense(property));
+    }, 0);
+
+    elements.portfolioSummaryCard.innerHTML = `
+      <span>Портфель</span>
+      <strong>${activeProperties.length} объектов</strong>
+      <small>${formatSignedMoney(expectedNetIncome)} / квартал</small>
+    `;
+  }
 }
 
 function renderLoanStatus() {
   if (!state.loan.active) {
     elements.loanStatusBox.innerHTML = `
-      <strong>Кредит отсутствует</strong>
-      <p>Можно привлечь ${formatMoney(LOAN_AMOUNT)} на 8 кварталов.</p>
+      <strong>Кредит: нет</strong>
+      <p>Доступно ${formatMoney(LOAN_AMOUNT)}</p>
     `;
     return;
   }
 
   const payment = Math.round(LOAN_AMOUNT * (state.interestRate / 100) / LOAN_TERM);
   elements.loanStatusBox.innerHTML = `
-    <strong>Кредит активен</strong>
-    <p>Осталось платежей: ${state.loan.remainingPayments}</p>
-    <p>Текущий квартальный платёж: ${formatMoney(payment)}</p>
+    <strong>Кредит: ${state.loan.remainingPayments} плат.</strong>
+    <p>${formatMoney(payment)} / квартал</p>
   `;
 }
 
@@ -733,6 +916,943 @@ function populatePropertySelect(selectElement, items, emptyLabel) {
   selectElement.innerHTML = items
     .map((property) => `<option value="${property.id}">${property.name} • ур. ${property.level}</option>`)
     .join("");
+}
+
+function renderCityScene() {
+  if (!elements.cityMap) {
+    return;
+  }
+
+  const scene = getEventScene(state.lastEvent);
+  const orderedProperties = [...state.properties].sort((left, right) => left.id - right.id);
+  const visibleProperties = orderedProperties.slice(0, CITY_PLOTS.length);
+  const hiddenPropertiesCount = Math.max(orderedProperties.length - CITY_PLOTS.length, 0);
+
+  elements.cityMap.className = `city-map city-map--canvas ${scene.className}`;
+  ensureCityCanvas();
+  citySceneCache = {
+    scene,
+    orderedProperties,
+    visibleProperties,
+    hiddenPropertiesCount
+  };
+
+  renderCityHud(scene, orderedProperties.length, hiddenPropertiesCount);
+  renderCityMarketBoard();
+  renderQuarterFlowBoard();
+  renderVisualEventBoard(scene);
+  startCityAnimation();
+  drawCityFrame(performance.now());
+}
+
+function ensureCityCanvas() {
+  if (elements.cityCanvas && elements.cityMap.contains(elements.cityCanvas)) {
+    return;
+  }
+
+  elements.cityMap.innerHTML = `
+    <canvas class="city-canvas" id="city-canvas" role="img" aria-label="Изометрическая карта города с дорогами и зданиями"></canvas>
+    <div class="city-hud" id="city-hud"></div>
+    <div class="city-tooltip" id="city-tooltip" hidden></div>
+  `;
+
+  elements.cityCanvas = document.getElementById("city-canvas");
+  elements.cityHud = document.getElementById("city-hud");
+  elements.cityTooltip = document.getElementById("city-tooltip");
+  elements.cityCanvas.addEventListener("mousemove", handleCityPointerMove);
+  elements.cityCanvas.addEventListener("mouseleave", hideCityTooltip);
+}
+
+function renderCityHud(scene, totalProperties, hiddenPropertiesCount) {
+  if (!elements.cityHud) {
+    return;
+  }
+
+  const activeCount = getActiveProperties().length;
+  const note = totalProperties === 0
+    ? "Постройте первый объект, чтобы район начал расти."
+    : hiddenPropertiesCount > 0
+      ? `На карте показано ${CITY_PLOTS.length}, ещё ${hiddenPropertiesCount} в портфеле.`
+      : `${activeCount} активных объектов на карте.`;
+
+  elements.cityHud.innerHTML = `
+    <div class="city-hud__event">
+      <span>${escapeHtml(scene.label)}</span>
+      <strong>${escapeHtml(scene.description)}</strong>
+    </div>
+    <div class="city-hud__meta">
+      <span>Квартал ${Math.min(state.quarter, MAX_QUARTERS)}/${MAX_QUARTERS}</span>
+      <span>${escapeHtml(note)}</span>
+    </div>
+  `;
+}
+
+function startCityAnimation() {
+  if (cityAnimationFrameId) {
+    return;
+  }
+
+  const animate = (timestamp) => {
+    drawCityFrame(timestamp);
+    cityAnimationFrameId = requestAnimationFrame(animate);
+  };
+
+  cityAnimationFrameId = requestAnimationFrame(animate);
+}
+
+function drawCityFrame(timestamp) {
+  if (!elements.cityCanvas || !citySceneCache) {
+    return;
+  }
+
+  const canvas = elements.cityCanvas;
+  const rect = canvas.getBoundingClientRect();
+
+  if (!rect.width || !rect.height) {
+    return;
+  }
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const targetWidth = Math.round(rect.width * dpr);
+  const targetHeight = Math.round(rect.height * dpr);
+
+  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  const metrics = createCityMetrics(rect.width, rect.height);
+  cityHitAreas = [];
+
+  drawCityBackground(ctx, metrics);
+  drawEventAtmosphere(ctx, metrics, timestamp);
+  drawRiver(ctx, metrics, timestamp);
+  drawCityTiles(ctx, metrics);
+  drawCityItems(ctx, metrics, timestamp);
+  drawCityForeground(ctx, metrics, timestamp);
+}
+
+function createCityMetrics(width, height) {
+  const tileW = Math.max(58, Math.min(132, (width - 10) / 8, (height - 150) / 4.65));
+  const tileH = tileW * 0.54;
+
+  return {
+    width,
+    height,
+    tileW,
+    tileH,
+    originX: width * 0.5,
+    originY: Math.max(74, height * 0.13)
+  };
+}
+
+function projectCityPoint(metrics, x, y, z = 0) {
+  return {
+    x: metrics.originX + (x - y) * metrics.tileW * 0.5,
+    y: metrics.originY + (x + y) * metrics.tileH * 0.5 - z
+  };
+}
+
+function getTilePoints(metrics, x, y, z = 0) {
+  return [
+    projectCityPoint(metrics, x, y, z),
+    projectCityPoint(metrics, x + 1, y, z),
+    projectCityPoint(metrics, x + 1, y + 1, z),
+    projectCityPoint(metrics, x, y + 1, z)
+  ];
+}
+
+function getFootprintPoints(metrics, centerX, centerY, halfX, halfY, z = 0) {
+  return [
+    projectCityPoint(metrics, centerX - halfX, centerY - halfY, z),
+    projectCityPoint(metrics, centerX + halfX, centerY - halfY, z),
+    projectCityPoint(metrics, centerX + halfX, centerY + halfY, z),
+    projectCityPoint(metrics, centerX - halfX, centerY + halfY, z)
+  ];
+}
+
+function drawCityBackground(ctx, metrics) {
+  const sky = ctx.createLinearGradient(0, 0, metrics.width, metrics.height);
+  sky.addColorStop(0, "#d9efe7");
+  sky.addColorStop(0.45, "#eef6ea");
+  sky.addColorStop(1, "#cbdedc");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, metrics.width, metrics.height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1;
+
+  for (let x = -metrics.height; x < metrics.width + metrics.height; x += 52) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + metrics.height, metrics.height);
+    ctx.stroke();
+  }
+
+  for (let x = 0; x < metrics.width + metrics.height; x += 52) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x - metrics.height, metrics.height);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawEventAtmosphere(ctx, metrics, timestamp) {
+  const sceneClass = citySceneCache.scene.className;
+  const pulse = 0.5 + Math.sin(timestamp / 850) * 0.5;
+
+  if (sceneClass === "city-map--risk") {
+    ctx.fillStyle = `rgba(177, 80, 64, ${0.08 + pulse * 0.05})`;
+    ctx.fillRect(0, 0, metrics.width, metrics.height);
+    return;
+  }
+
+  if (sceneClass === "city-map--finance") {
+    const beam = ctx.createLinearGradient(0, 0, metrics.width, metrics.height);
+    beam.addColorStop(0, "rgba(69, 112, 184, 0)");
+    beam.addColorStop(0.52, `rgba(74, 127, 205, ${0.12 + pulse * 0.04})`);
+    beam.addColorStop(1, "rgba(232, 184, 74, 0.1)");
+    ctx.fillStyle = beam;
+    ctx.fillRect(0, 0, metrics.width, metrics.height);
+    return;
+  }
+
+  if (sceneClass === "city-map--growth") {
+    const glow = ctx.createRadialGradient(metrics.width * 0.48, metrics.height * 0.44, 80, metrics.width * 0.48, metrics.height * 0.44, metrics.width * 0.7);
+    glow.addColorStop(0, `rgba(58, 151, 99, ${0.12 + pulse * 0.05})`);
+    glow.addColorStop(1, "rgba(58, 151, 99, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, metrics.width, metrics.height);
+  }
+}
+
+function drawRiver(ctx, metrics, timestamp) {
+  const river = [
+    projectCityPoint(metrics, 7.2, -1.1),
+    projectCityPoint(metrics, 10.3, 1.4),
+    projectCityPoint(metrics, 9.9, 8.9),
+    projectCityPoint(metrics, 6.1, 8.7)
+  ];
+
+  const gradient = ctx.createLinearGradient(river[0].x, river[0].y, river[2].x, river[2].y);
+  gradient.addColorStop(0, "#8ccbd9");
+  gradient.addColorStop(1, "#4e98b5");
+  fillPolygon(ctx, river, gradient);
+
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = "#e7fbff";
+  ctx.lineWidth = 2;
+
+  for (let index = 0; index < 7; index += 1) {
+    const offset = ((timestamp / 60 + index * 34) % 180) - 90;
+    ctx.beginPath();
+    ctx.moveTo(river[0].x + offset, river[0].y + index * 52);
+    ctx.quadraticCurveTo(river[0].x + 120 + offset, river[0].y + 40 + index * 52, river[0].x + 260 + offset, river[0].y + 20 + index * 52);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawCityTiles(ctx, metrics) {
+  for (let y = 0; y < CITY_GRID.rows; y += 1) {
+    for (let x = 0; x < CITY_GRID.columns; x += 1) {
+      const plot = getCityPlotAt(x, y);
+      const isRoad = CITY_ROAD_KEYS.has(`${x}:${y}`);
+      const points = getTilePoints(metrics, x, y);
+
+      if (isRoad) {
+        drawRoadTile(ctx, metrics, x, y, points);
+      } else if (plot) {
+        drawPlotTile(ctx, points, plot.zone);
+        cityHitAreas.push({
+          polygon: points,
+          plot,
+          property: citySceneCache.visibleProperties[CITY_PLOTS.indexOf(plot)]
+        });
+      } else {
+        drawPlotTile(ctx, points, "empty");
+      }
+    }
+  }
+}
+
+function drawRoadTile(ctx, metrics, x, y, points) {
+  fillPolygon(ctx, points, "#4e6566");
+  strokePolygon(ctx, points, "rgba(255, 255, 255, 0.2)", 1);
+
+  const center = projectCityPoint(metrics, x + 0.5, y + 0.5);
+  const horizontal = y === 3 || y === 6;
+  const from = horizontal ? projectCityPoint(metrics, x + 0.12, y + 0.5) : projectCityPoint(metrics, x + 0.5, y + 0.12);
+  const to = horizontal ? projectCityPoint(metrics, x + 0.88, y + 0.5) : projectCityPoint(metrics, x + 0.5, y + 0.88);
+
+  ctx.save();
+  ctx.globalAlpha = 0.65;
+  ctx.strokeStyle = "#e9f0dc";
+  ctx.lineWidth = Math.max(2, metrics.tileW * 0.025);
+  ctx.setLineDash([metrics.tileW * 0.12, metrics.tileW * 0.08]);
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.1;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, metrics.tileW * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPlotTile(ctx, points, zone) {
+  const fills = {
+    residential: "#bcd5c9",
+    business: "#c7d6df",
+    commerce: "#dcc8a5",
+    park: "#b7d78e",
+    waterfront: "#b8dce1",
+    empty: "#c9ddd2"
+  };
+
+  fillPolygon(ctx, offsetPoints(points, 0, 13), "rgba(31, 52, 45, 0.13)");
+  fillPolygon(ctx, points, fills[zone] || fills.empty);
+  strokePolygon(ctx, points, "rgba(255, 255, 255, 0.6)", 1.3);
+  strokePolygon(ctx, points, "rgba(40, 78, 61, 0.18)", 1);
+}
+
+function drawCityItems(ctx, metrics, timestamp) {
+  const items = CITY_PLOTS.map((plot, index) => ({
+    type: "plot",
+    plot,
+    property: citySceneCache.visibleProperties[index],
+    depth: plot.x + plot.y + 0.95
+  }));
+
+  CITY_TRAFFIC_ROUTES.forEach((route, index) => {
+    const position = getRoutePosition(route, timestamp);
+    const nextPosition = getRoutePosition(route, timestamp + 180);
+    items.push({
+      type: "car",
+      route,
+      index,
+      position,
+      nextPosition,
+      depth: position.x + position.y + 0.4
+    });
+  });
+
+  items
+    .sort((left, right) => left.depth - right.depth)
+    .forEach((item) => {
+      if (item.type === "car") {
+        drawCar(ctx, metrics, item.position, item.nextPosition, item.route.color);
+        return;
+      }
+
+      drawPlotContent(ctx, metrics, item.plot, item.property, timestamp);
+    });
+}
+
+function drawPlotContent(ctx, metrics, plot, property, timestamp) {
+  if (!property) {
+    drawZoneDetails(ctx, metrics, plot);
+    drawEmptyFoundation(ctx, metrics, plot);
+    return;
+  }
+
+  if (property.status === "sold") {
+    drawSoldLot(ctx, metrics, plot);
+    return;
+  }
+
+  drawBuilding(ctx, metrics, plot, property, timestamp);
+}
+
+function drawZoneDetails(ctx, metrics, plot) {
+  if (plot.zone === "park") {
+    drawTree(ctx, metrics, plot.x + 0.28, plot.y + 0.42, 0.95);
+    drawTree(ctx, metrics, plot.x + 0.68, plot.y + 0.62, 0.72);
+    return;
+  }
+
+  if (plot.zone === "waterfront") {
+    const pier = getFootprintPoints(metrics, plot.x + 0.5, plot.y + 0.52, 0.24, 0.08, 2);
+    fillPolygon(ctx, pier, "rgba(122, 92, 61, 0.78)");
+    return;
+  }
+
+  if (plot.zone === "commerce") {
+    drawParkingLines(ctx, metrics, plot);
+  }
+}
+
+function drawEmptyFoundation(ctx, metrics, plot) {
+  const base = getFootprintPoints(metrics, plot.x + 0.5, plot.y + 0.52, 0.27, 0.23, 2);
+  fillPolygon(ctx, base, "rgba(255, 255, 255, 0.28)");
+  strokePolygon(ctx, base, "rgba(44, 82, 68, 0.24)", 2);
+}
+
+function drawBuilding(ctx, metrics, plot, property, timestamp) {
+  const typeKey = getPropertyTypeKey(property);
+  const level = Math.min(property.level, 6);
+  const palettes = {
+    housing: { front: "#78aa84", side: "#5e8a6b", sideDark: "#4d735d", top: "#d9e7d9", window: "#fff0a7", accent: "#35634e" },
+    office: { front: "#6b91c8", side: "#456da5", sideDark: "#365989", top: "#c9def4", window: "#dff6ff", accent: "#254b78" },
+    retail: { front: "#cf8d43", side: "#a8672e", sideDark: "#834f2a", top: "#f1d3a4", window: "#fff0be", accent: "#743b25" }
+  };
+  const palette = palettes[typeKey] || palettes.housing;
+  const height = metrics.tileW * (typeKey === "office" ? 0.95 + level * 0.28 : typeKey === "retail" ? 0.5 + level * 0.12 : 0.7 + level * 0.18);
+  const footprint = typeKey === "retail"
+    ? { halfX: 0.36, halfY: 0.3 }
+    : typeKey === "office"
+      ? { halfX: 0.24, halfY: 0.25 }
+      : { halfX: 0.29, halfY: 0.27 };
+
+  const centerX = plot.x + 0.5;
+  const centerY = plot.y + 0.52;
+  const rows = typeKey === "retail" ? 2 + level : Math.max(4, Math.round(height / 20));
+  const cols = typeKey === "office" ? 4 : 3;
+
+  drawPrism(ctx, metrics, {
+    centerX,
+    centerY,
+    halfX: footprint.halfX,
+    halfY: footprint.halfY,
+    height,
+    palette,
+    rows,
+    cols
+  });
+
+  if (typeKey === "office") {
+    drawOfficeAntenna(ctx, metrics, centerX, centerY, height, palette.accent);
+  }
+
+  if (typeKey === "retail") {
+    drawRetailAwning(ctx, metrics, centerX, centerY, footprint.halfX, footprint.halfY, height);
+  }
+
+  if (typeKey === "housing") {
+    drawTree(ctx, metrics, plot.x + 0.22, plot.y + 0.73, 0.64);
+  }
+
+  if (state.quarter - property.createdAtQuarter <= 1) {
+    drawConstructionSpark(ctx, metrics, centerX, centerY, height, timestamp);
+  }
+
+  drawBuildingLabel(ctx, metrics, centerX, centerY, height, `${getShortTypeLabel(property)}-${property.id}`);
+}
+
+function drawPrism(ctx, metrics, options) {
+  const base = getFootprintPoints(metrics, options.centerX, options.centerY, options.halfX, options.halfY, 0);
+  const top = getFootprintPoints(metrics, options.centerX, options.centerY, options.halfX, options.halfY, options.height);
+
+  fillPolygon(ctx, offsetPoints(base, 14, 22), "rgba(26, 43, 39, 0.18)");
+  fillPolygon(ctx, [base[0], base[3], top[3], top[0]], options.palette.sideDark);
+  fillPolygon(ctx, [base[1], base[2], top[2], top[1]], options.palette.side);
+  fillPolygon(ctx, [base[3], base[2], top[2], top[3]], options.palette.front);
+  fillPolygon(ctx, top, options.palette.top);
+
+  drawWindowGrid(ctx, base[3], base[2], top[2], top[3], options.rows, options.cols, options.palette.window);
+  drawWindowGrid(ctx, base[1], base[2], top[2], top[1], options.rows, 2, "rgba(218, 244, 255, 0.62)");
+  strokePolygon(ctx, top, "rgba(255, 255, 255, 0.5)", 1);
+}
+
+function drawWindowGrid(ctx, bottomLeft, bottomRight, topRight, topLeft, rows, cols, color) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.86;
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const u1 = (col + 0.22) / cols;
+      const u2 = (col + 0.62) / cols;
+      const v1 = (row + 0.2) / (rows + 0.4);
+      const v2 = (row + 0.48) / (rows + 0.4);
+      const windowPoints = [
+        bilinearPoint(bottomLeft, bottomRight, topRight, topLeft, u1, v1),
+        bilinearPoint(bottomLeft, bottomRight, topRight, topLeft, u2, v1),
+        bilinearPoint(bottomLeft, bottomRight, topRight, topLeft, u2, v2),
+        bilinearPoint(bottomLeft, bottomRight, topRight, topLeft, u1, v2)
+      ];
+      fillPolygon(ctx, windowPoints, color);
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawOfficeAntenna(ctx, metrics, centerX, centerY, height, color) {
+  const roof = projectCityPoint(metrics, centerX, centerY, height);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(roof.x, roof.y);
+  ctx.lineTo(roof.x, roof.y - metrics.tileW * 0.22);
+  ctx.stroke();
+  ctx.fillStyle = "#f3c75d";
+  ctx.beginPath();
+  ctx.arc(roof.x, roof.y - metrics.tileW * 0.23, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawRetailAwning(ctx, metrics, centerX, centerY, halfX, halfY, height) {
+  const frontLeft = projectCityPoint(metrics, centerX - halfX, centerY + halfY, height * 0.42);
+  const frontRight = projectCityPoint(metrics, centerX + halfX, centerY + halfY, height * 0.42);
+
+  ctx.save();
+  ctx.strokeStyle = "#f7e2a8";
+  ctx.lineWidth = Math.max(5, metrics.tileW * 0.055);
+  ctx.beginPath();
+  ctx.moveTo(frontLeft.x, frontLeft.y);
+  ctx.lineTo(frontRight.x, frontRight.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBuildingLabel(ctx, metrics, centerX, centerY, height, label) {
+  const point = projectCityPoint(metrics, centerX, centerY, height + metrics.tileW * 0.14);
+  ctx.save();
+  ctx.font = `800 ${Math.max(10, metrics.tileW * 0.11)}px Trebuchet MS, sans-serif`;
+  const width = ctx.measureText(label).width + 16;
+  const heightBox = 22;
+  drawRoundedRect(ctx, point.x - width / 2, point.y - heightBox / 2, width, heightBox, 9, "rgba(255, 255, 255, 0.9)", "rgba(30, 54, 45, 0.1)");
+  ctx.fillStyle = "#173126";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, point.x, point.y + 0.5);
+  ctx.restore();
+}
+
+function drawConstructionSpark(ctx, metrics, centerX, centerY, height, timestamp) {
+  const point = projectCityPoint(metrics, centerX + 0.18, centerY - 0.16, height * 0.72);
+  const pulse = Math.sin(timestamp / 120) * 0.5 + 0.5;
+  ctx.save();
+  ctx.strokeStyle = `rgba(245, 190, 71, ${0.35 + pulse * 0.45})`;
+  ctx.lineWidth = 2;
+
+  for (let index = 0; index < 5; index += 1) {
+    const angle = (Math.PI * 2 * index) / 5 + timestamp / 460;
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+    ctx.lineTo(point.x + Math.cos(angle) * 15, point.y + Math.sin(angle) * 15);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawSoldLot(ctx, metrics, plot) {
+  const base = getFootprintPoints(metrics, plot.x + 0.5, plot.y + 0.52, 0.32, 0.24, 3);
+  fillPolygon(ctx, base, "rgba(160, 156, 143, 0.86)");
+  strokePolygon(ctx, base, "rgba(95, 91, 83, 0.6)", 2);
+
+  const sign = projectCityPoint(metrics, plot.x + 0.5, plot.y + 0.5, metrics.tileW * 0.35);
+  drawRoundedRect(ctx, sign.x - 25, sign.y - 11, 50, 22, 6, "#b64b43", "rgba(255,255,255,0.4)");
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "800 10px Trebuchet MS, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("SOLD", sign.x, sign.y);
+  ctx.restore();
+}
+
+function drawParkingLines(ctx, metrics, plot) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.44)";
+  ctx.lineWidth = 1.5;
+
+  for (let index = 0; index < 4; index += 1) {
+    const from = projectCityPoint(metrics, plot.x + 0.18 + index * 0.15, plot.y + 0.72);
+    const to = projectCityPoint(metrics, plot.x + 0.28 + index * 0.15, plot.y + 0.84);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawTree(ctx, metrics, x, y, scale = 1) {
+  const base = projectCityPoint(metrics, x, y, 0);
+  const trunkHeight = metrics.tileW * 0.14 * scale;
+  const crown = metrics.tileW * 0.13 * scale;
+
+  ctx.save();
+  ctx.fillStyle = "#7a5733";
+  ctx.fillRect(base.x - 2 * scale, base.y - trunkHeight, 4 * scale, trunkHeight);
+  ctx.fillStyle = "#4e965c";
+  ctx.beginPath();
+  ctx.ellipse(base.x, base.y - trunkHeight - crown * 0.25, crown, crown * 0.72, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+  ctx.beginPath();
+  ctx.arc(base.x - crown * 0.28, base.y - trunkHeight - crown * 0.5, crown * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCar(ctx, metrics, position, nextPosition, color) {
+  const point = projectCityPoint(metrics, position.x, position.y, 5);
+  const next = projectCityPoint(metrics, nextPosition.x, nextPosition.y, 5);
+  const angle = Math.atan2(next.y - point.y, next.x - point.x);
+  const width = metrics.tileW * 0.31;
+  const height = metrics.tileW * 0.16;
+
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.rotate(angle);
+  drawRoundedRect(ctx, -width / 2, -height / 2, width, height, height * 0.35, color, "rgba(20, 36, 34, 0.25)");
+  drawRoundedRect(ctx, -width * 0.12, -height * 0.42, width * 0.33, height * 0.84, height * 0.2, "rgba(213, 237, 244, 0.85)", "transparent");
+  ctx.fillStyle = "#222f31";
+  ctx.beginPath();
+  ctx.arc(-width * 0.28, height * 0.52, height * 0.22, 0, Math.PI * 2);
+  ctx.arc(width * 0.28, height * 0.52, height * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCityForeground(ctx, metrics, timestamp) {
+  if (citySceneCache.scene.className !== "city-map--culture") {
+    return;
+  }
+
+  ctx.save();
+  ctx.globalAlpha = 0.75;
+
+  for (let index = 0; index < 18; index += 1) {
+    const x = (index * 83 + timestamp / 18) % metrics.width;
+    const y = 48 + ((index * 37 + timestamp / 34) % (metrics.height * 0.55));
+    ctx.fillStyle = index % 2 ? "#d68c2d" : "#2b8b57";
+    ctx.fillRect(x, y, 4, 9);
+  }
+
+  ctx.restore();
+}
+
+function getCityPlotAt(x, y) {
+  return CITY_PLOTS.find((plot) => plot.x === x && plot.y === y);
+}
+
+function getRoutePosition(route, timestamp) {
+  const segments = [];
+  let totalLength = 0;
+
+  for (let index = 0; index < route.points.length - 1; index += 1) {
+    const from = route.points[index];
+    const to = route.points[index + 1];
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    segments.push({ from, to, length });
+    totalLength += length;
+  }
+
+  let distance = ((timestamp * route.speed + route.offset) % 1) * totalLength;
+
+  for (const segment of segments) {
+    if (distance <= segment.length) {
+      const progress = segment.length ? distance / segment.length : 0;
+      return {
+        x: segment.from.x + (segment.to.x - segment.from.x) * progress,
+        y: segment.from.y + (segment.to.y - segment.from.y) * progress
+      };
+    }
+    distance -= segment.length;
+  }
+
+  return route.points[0];
+}
+
+function handleCityPointerMove(event) {
+  if (!elements.cityCanvas || !elements.cityTooltip) {
+    return;
+  }
+
+  const rect = elements.cityCanvas.getBoundingClientRect();
+  const point = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+  const hit = [...cityHitAreas].reverse().find((area) => pointInPolygon(point, area.polygon));
+
+  if (!hit) {
+    hideCityTooltip();
+    elements.cityCanvas.style.cursor = "default";
+    return;
+  }
+
+  elements.cityCanvas.style.cursor = "pointer";
+  const propertyText = hit.property
+    ? `${hit.property.name}, уровень ${hit.property.level}, статус: ${hit.property.status === "active" ? "активен" : "продан"}`
+    : "Свободный участок для будущей застройки";
+
+  elements.cityTooltip.hidden = false;
+  elements.cityTooltip.style.left = `${Math.min(point.x + 18, rect.width - 240)}px`;
+  elements.cityTooltip.style.top = `${Math.max(12, point.y - 20)}px`;
+  elements.cityTooltip.innerHTML = `
+    <strong>${escapeHtml(hit.plot.name)}</strong>
+    <span>${escapeHtml(propertyText)}</span>
+  `;
+}
+
+function hideCityTooltip() {
+  if (elements.cityTooltip) {
+    elements.cityTooltip.hidden = true;
+  }
+}
+
+function pointInPolygon(point, polygon) {
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const current = polygon[i];
+    const previous = polygon[j];
+    const intersects = current.y > point.y !== previous.y > point.y
+      && point.x < ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function fillPolygon(ctx, points, fillStyle) {
+  ctx.save();
+  ctx.fillStyle = fillStyle;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function strokePolygon(ctx, points, strokeStyle, lineWidth = 1) {
+  ctx.save();
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function offsetPoints(points, x, y) {
+  return points.map((point) => ({ x: point.x + x, y: point.y + y }));
+}
+
+function bilinearPoint(bottomLeft, bottomRight, topRight, topLeft, u, v) {
+  const left = lerpPoint(bottomLeft, topLeft, v);
+  const right = lerpPoint(bottomRight, topRight, v);
+  return lerpPoint(left, right, u);
+}
+
+function lerpPoint(from, to, progress) {
+  return {
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress
+  };
+}
+
+function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle) {
+  ctx.save();
+  ctx.beginPath();
+
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+  }
+
+  ctx.fillStyle = fillStyle;
+  ctx.fill();
+
+  if (strokeStyle && strokeStyle !== "transparent") {
+    ctx.strokeStyle = strokeStyle;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function renderCityMarketBoard() {
+  const activeProperties = getActiveProperties();
+  const portfolioLoad = clamp(Math.round((activeProperties.length / CITY_PLOTS.length) * 100), 0, 100);
+  const creditPressure = state.loan.active ? clamp(Math.round((state.loan.remainingPayments / LOAN_TERM) * 100), 0, 100) : 0;
+  const rateComfort = clamp(Math.round(((25 - state.interestRate) / 24) * 100), 0, 100);
+
+  elements.cityMarketBoard.innerHTML = `
+    <h4>Пульс района</h4>
+    ${renderMeter("Спрос", state.demand, `${state.demand}/100`)}
+    ${renderMeter("Репутация", state.reputation, `${state.reputation}/100`)}
+    ${renderMeter("Комфорт ставки", rateComfort, `${state.interestRate}%`)}
+    ${renderMeter("Загрузка карты", portfolioLoad, `${activeProperties.length}/${CITY_PLOTS.length}`)}
+    ${state.loan.active ? renderMeter("Кредитное давление", creditPressure, `${state.loan.remainingPayments} плат.`) : ""}
+  `;
+}
+
+function renderQuarterFlowBoard() {
+  if (!state.lastQuarterSummary) {
+    elements.quarterFlowBoard.innerHTML = `
+      <h4>Поток квартала</h4>
+      <p>После первого действия здесь появится разбор доходов, расходов, кредита и чистого квартального результата.</p>
+    `;
+    return;
+  }
+
+  const summary = state.lastQuarterSummary;
+  elements.quarterFlowBoard.innerHTML = `
+    <h4>Поток квартала ${summary.quarter}</h4>
+    <div class="flow-grid">
+      ${renderFlowItem("Доход", summary.portfolioIncome, "positive")}
+      ${renderFlowItem("Расходы", -summary.portfolioExpense, "negative")}
+      ${renderFlowItem("Кредит", -summary.loanPayment, summary.loanPayment ? "negative" : "neutral")}
+      ${renderFlowItem("Итог", summary.netIncome - summary.loanPayment, summary.netIncome - summary.loanPayment >= 0 ? "positive" : "negative")}
+    </div>
+  `;
+}
+
+function renderVisualEventBoard(scene) {
+  if (!state.lastEvent) {
+    elements.visualEventBoard.innerHTML = `
+      <h4>Событие на карте</h4>
+      <p>Рыночные события будут менять цветовой слой города, панели эффектов и историю кварталов.</p>
+    `;
+    return;
+  }
+
+  elements.visualEventBoard.innerHTML = `
+    <h4>${escapeHtml(state.lastEvent.title)}</h4>
+    <p>${escapeHtml(state.lastEvent.description)}</p>
+    <div class="event-impact-grid">
+      ${renderEventImpact("Спрос", state.lastEvent.effect.demand)}
+      ${renderEventImpact("Ставка", state.lastEvent.effect.interestRate)}
+      ${renderEventImpact("Репутация", state.lastEvent.effect.reputation)}
+      ${renderEventImpact("Деньги", state.lastEvent.effect.money, true)}
+    </div>
+    <p>${escapeHtml(scene.label)}: ${escapeHtml(state.lastEvent.effectText)}</p>
+  `;
+}
+
+function renderMeter(label, value, displayValue) {
+  return `
+    <div class="city-meter">
+      <div class="city-meter__label">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(displayValue)}</strong>
+      </div>
+      <div class="city-meter__track">
+        <div class="city-meter__fill" style="--value: ${clamp(value, 0, 100)}%"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFlowItem(label, value, tone) {
+  const toneClass = tone === "positive" ? "flow-item--positive" : tone === "negative" ? "flow-item--negative" : "";
+  return `
+    <div class="flow-item ${toneClass}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${formatSignedMoney(value)}</strong>
+    </div>
+  `;
+}
+
+function renderEventImpact(label, value, moneyLike = false) {
+  const toneClass = value > 0 ? "event-impact--positive" : value < 0 ? "event-impact--negative" : "";
+  const displayValue = moneyLike ? formatSignedMoney(value) : formatSignedNumber(value);
+
+  return `
+    <div class="event-impact ${toneClass}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${displayValue}</strong>
+    </div>
+  `;
+}
+
+function getEventScene(eventItem) {
+  if (!eventItem) {
+    return {
+      className: "",
+      label: "Рынок в ожидании",
+      description: "Пока не было квартального события. Карта показывает стартовое состояние района."
+    };
+  }
+
+  const scene = EVENT_SCENE_MAP[eventItem.category] || {
+    className: "",
+    label: "Рыночный сигнал"
+  };
+
+  return {
+    className: scene.className,
+    label: scene.label,
+    description: eventItem.description
+  };
+}
+
+function getPropertyTypeKey(property) {
+  if (property.typeKey) {
+    return property.typeKey;
+  }
+
+  if (property.type === "Офис") {
+    return "office";
+  }
+  if (property.type === "Ритейл") {
+    return "retail";
+  }
+
+  return "housing";
+}
+
+function getShortTypeLabel(property) {
+  const typeKey = getPropertyTypeKey(property);
+
+  if (typeKey === "office") {
+    return "ОФ";
+  }
+  if (typeKey === "retail") {
+    return "ТР";
+  }
+
+  return "ЖК";
 }
 
 function renderProperties() {
@@ -772,40 +1892,50 @@ function renderProperties() {
           </span>
         </div>
 
-        <div class="property-stats">
-          <div class="property-stat">
-            <span class="property-stat__label">Уровень</span>
-            <span class="property-stat__value">${property.level}</span>
+        <div class="property-summary-row">
+          <div class="property-main-number">
+            <span>${isActive ? "Чистая прибыль / квартал" : "Получено при продаже"}</span>
+            <strong>${isActive ? formatMoney(netIncome) : formatMoney(salePrice)}</strong>
           </div>
-          <div class="property-stat">
-            <span class="property-stat__label">Базовая стоимость</span>
-            <span class="property-stat__value">${formatMoney(property.baseCost)}</span>
+          <div class="property-mini-stat">
+            <span>Уровень</span>
+            <strong>${property.level}</strong>
           </div>
-          <div class="property-stat">
-            <span class="property-stat__label">Базовый доход</span>
-            <span class="property-stat__value">${formatMoney(property.baseIncome)}</span>
-          </div>
-          <div class="property-stat">
-            <span class="property-stat__label">Базовый расход</span>
-            <span class="property-stat__value">${formatMoney(property.baseExpense)}</span>
-          </div>
-          <div class="property-stat">
-            <span class="property-stat__label">Текущий доход</span>
-            <span class="property-stat__value">${isActive ? formatMoney(income) : "—"}</span>
-          </div>
-          <div class="property-stat">
-            <span class="property-stat__label">Текущий расход</span>
-            <span class="property-stat__value">${isActive ? formatMoney(expense) : "—"}</span>
-          </div>
-          <div class="property-stat">
-            <span class="property-stat__label">Чистая прибыль</span>
-            <span class="property-stat__value">${isActive ? formatMoney(netIncome) : "—"}</span>
-          </div>
-          <div class="property-stat">
-            <span class="property-stat__label">${isActive ? "Цена продажи" : "Цена продажи при сделке"}</span>
-            <span class="property-stat__value">${salePrice ? formatMoney(salePrice) : "—"}</span>
+          <div class="property-mini-stat">
+            <span>${isActive ? "Цена продажи" : "Статус"}</span>
+            <strong>${isActive ? formatMoney(salePrice) : "Закрыт"}</strong>
           </div>
         </div>
+
+        <details class="property-details">
+          <summary>Показать расчёты</summary>
+          <div class="property-stats">
+            <div class="property-stat">
+              <span class="property-stat__label">Базовая стоимость</span>
+              <span class="property-stat__value">${formatMoney(property.baseCost)}</span>
+            </div>
+            <div class="property-stat">
+              <span class="property-stat__label">Базовый доход</span>
+              <span class="property-stat__value">${formatMoney(property.baseIncome)}</span>
+            </div>
+            <div class="property-stat">
+              <span class="property-stat__label">Базовый расход</span>
+              <span class="property-stat__value">${formatMoney(property.baseExpense)}</span>
+            </div>
+            <div class="property-stat">
+              <span class="property-stat__label">Текущий доход</span>
+              <span class="property-stat__value">${isActive ? formatMoney(income) : "—"}</span>
+            </div>
+            <div class="property-stat">
+              <span class="property-stat__label">Текущий расход</span>
+              <span class="property-stat__value">${isActive ? formatMoney(expense) : "—"}</span>
+            </div>
+            <div class="property-stat">
+              <span class="property-stat__label">ID объекта</span>
+              <span class="property-stat__value">${property.id}</span>
+            </div>
+          </div>
+        </details>
 
         <div class="property-card__footer">
           <div class="property-card__meta">
@@ -1017,29 +2147,13 @@ function drawLineChart(canvas, values, options) {
 }
 
 function updateStartScreen() {
-  const savedState = loadGame();
-
-  if (!savedState) {
-    elements.saveHint.textContent = "Сохранение не найдено. Игра начнётся с чистого состояния.";
-    elements.continueGameButton.classList.add("is-hidden");
-    return;
-  }
-
-  const loadedState = normalizeLoadedState(savedState);
-  elements.continueGameButton.classList.remove("is-hidden");
-
-  if (loadedState.gameOver) {
-    const resultText = loadedState.resultType === "victory" ? "победа" : loadedState.resultType === "defeat" ? "поражение" : "нейтральный итог";
-    elements.saveHint.textContent = `Найдено завершённое сохранение: ${resultText}, деньги ${formatMoney(loadedState.money)}, репутация ${loadedState.reputation}.`;
-    return;
-  }
-
-  elements.saveHint.textContent = `Найдено сохранение: квартал ${loadedState.quarter}, деньги ${formatMoney(loadedState.money)}, объектов ${loadedState.properties.filter((property) => property.status === "active").length}.`;
+  elements.saveHint.textContent = "Нажмите «Начать новую игру», чтобы запустить симуляцию с первого квартала.";
 }
 
 function showGameScreen(scrollIntoView) {
   elements.startScreen.classList.add("is-hidden");
   elements.gameScreen.classList.remove("is-hidden");
+  document.body.classList.add("is-playing");
   state.ui.wasGameVisible = true;
   saveGame(true);
 
@@ -1051,6 +2165,7 @@ function showGameScreen(scrollIntoView) {
 function showStartScreen() {
   elements.startScreen.classList.remove("is-hidden");
   elements.gameScreen.classList.add("is-hidden");
+  document.body.classList.remove("is-playing");
   state.ui.wasGameVisible = false;
 }
 
@@ -1108,6 +2223,14 @@ function openEndgameModal() {
 
 function closeEndgameModal() {
   elements.endgameModal.classList.add("is-hidden");
+}
+
+function returnToMenuFromModal() {
+  closeEndgameModal();
+  showStartScreen();
+  saveGame(true);
+  updateStartScreen();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function renderEventCard(eventItem) {
@@ -1207,7 +2330,7 @@ function saveGame(silent) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
     if (!silent) {
-      showToast("Не удалось сохранить игру в LocalStorage.", "danger");
+      showToast("Не удалось записать текущий прогресс.", "danger");
     }
   }
 }
@@ -1225,12 +2348,8 @@ function clearSavedGame() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    showToast("Не удалось очистить сохранение.", "danger");
+    showToast("Не удалось сбросить текущий прогресс.", "danger");
   }
-}
-
-function hasSavedGame() {
-  return Boolean(loadGame());
 }
 
 function clamp(value, min, max) {
@@ -1255,4 +2374,29 @@ function formatCompactValue(value) {
     return `${Math.round(value / 1000)} тыс`;
   }
   return `${Math.round(value)}`;
+}
+
+function formatSignedMoney(value) {
+  if (!value) {
+    return "0";
+  }
+
+  return `${value > 0 ? "+" : "-"}${formatMoney(Math.abs(value))}`;
+}
+
+function formatSignedNumber(value) {
+  if (!value) {
+    return "0";
+  }
+
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
