@@ -481,6 +481,210 @@ body.is-playing .game-board {
   line-height: 1.45;
 }
 
+.advisor-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(21, 39, 30, 0.08);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.48), transparent 24%),
+    linear-gradient(135deg, rgba(236, 247, 242, 0.96), rgba(255, 255, 255, 0.92));
+  box-shadow: 0 18px 38px rgba(22, 50, 39, 0.08);
+}
+
+.advisor-panel--success {
+  border-color: rgba(43, 139, 87, 0.22);
+}
+
+.advisor-panel--warning {
+  border-color: rgba(214, 140, 45, 0.3);
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.48), transparent 24%),
+    linear-gradient(135deg, rgba(255, 246, 229, 0.96), rgba(255, 255, 255, 0.92));
+}
+
+.advisor-panel--danger {
+  border-color: rgba(201, 83, 83, 0.28);
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.45), transparent 24%),
+    linear-gradient(135deg, rgba(255, 235, 232, 0.96), rgba(255, 255, 255, 0.92));
+}
+
+.advisor-panel--info,
+.advisor-panel--muted {
+  border-color: rgba(23, 107, 82, 0.16);
+}
+
+.advisor-panel__top,
+.advisor-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.advisor-toggle {
+  justify-content: flex-start;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.advisor-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.advisor-pill,
+.advisor-badge {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.advisor-pill {
+  padding: 6px 9px;
+  color: var(--primary-strong);
+  background: rgba(23, 107, 82, 0.1);
+}
+
+.advisor-main-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.28), transparent 24%),
+    linear-gradient(135deg, #153f34, #1e7459);
+}
+
+.advisor-panel--warning .advisor-main-card {
+  background:
+    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.28), transparent 24%),
+    linear-gradient(135deg, #7a4c17, #d68c2d);
+}
+
+.advisor-panel--danger .advisor-main-card {
+  background:
+    radial-gradient(circle at 90% 12%, rgba(255, 255, 255, 0.24), transparent 24%),
+    linear-gradient(135deg, #7a302d, #c95353);
+}
+
+.advisor-badge {
+  padding: 6px 9px;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.advisor-main-card h4,
+.advisor-main-card p,
+.advisor-event-note p,
+.advisor-muted-text,
+.advisor-warnings p,
+.advisor-alternatives span {
+  margin: 0;
+}
+
+.advisor-main-card h4 {
+  font-size: 1.08rem;
+}
+
+.advisor-main-card p {
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.42;
+}
+
+.advisor-apply-button {
+  margin-top: 2px;
+}
+
+.advisor-event-note,
+.advisor-warnings,
+.advisor-alternatives {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(21, 39, 30, 0.06);
+}
+
+.advisor-event-note strong,
+.advisor-alternatives strong {
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.advisor-event-note p,
+.advisor-muted-text,
+.advisor-alternatives span {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  line-height: 1.38;
+}
+
+.advisor-checklist {
+  display: grid;
+  gap: 6px;
+}
+
+.advisor-check {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(214, 140, 45, 0.18);
+}
+
+.advisor-check span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.advisor-check p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.32;
+}
+
+.advisor-check--done {
+  border-color: rgba(43, 139, 87, 0.16);
+}
+
+.advisor-check--done span {
+  background: var(--success);
+}
+
+.advisor-warnings {
+  border-color: rgba(201, 83, 83, 0.18);
+  background: rgba(255, 240, 238, 0.72);
+}
+
+.advisor-warnings p {
+  color: #8a3935;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .quick-action-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -651,6 +855,78 @@ body.is-playing .next-action-card strong {
 
 body.is-playing .next-action-card p {
   display: none;
+}
+
+body.is-playing .advisor-panel {
+  gap: 7px;
+  padding: 9px;
+  border-radius: 16px;
+}
+
+body.is-playing .advisor-panel__top {
+  gap: 6px;
+}
+
+body.is-playing .advisor-toggle {
+  font-size: 0.66rem;
+}
+
+body.is-playing .advisor-pill {
+  padding: 4px 7px;
+  font-size: 0.62rem;
+}
+
+body.is-playing .advisor-main-card {
+  gap: 5px;
+  padding: 10px;
+  border-radius: 14px;
+}
+
+body.is-playing .advisor-main-card h4 {
+  font-size: 0.92rem;
+}
+
+body.is-playing .advisor-main-card p,
+body.is-playing .advisor-event-note p,
+body.is-playing .advisor-check p,
+body.is-playing .advisor-warnings p,
+body.is-playing .advisor-alternatives span {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+body.is-playing .advisor-badge {
+  padding: 4px 7px;
+  font-size: 0.62rem;
+}
+
+body.is-playing .advisor-event-note,
+body.is-playing .advisor-warnings,
+body.is-playing .advisor-alternatives {
+  padding: 8px;
+  border-radius: 12px;
+}
+
+body.is-playing .advisor-event-note strong,
+body.is-playing .advisor-alternatives strong {
+  font-size: 0.68rem;
+}
+
+body.is-playing .advisor-checklist {
+  gap: 4px;
+}
+
+body.is-playing .advisor-check {
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px 7px;
+  border-radius: 10px;
+}
+
+body.is-playing .advisor-check span {
+  width: 16px;
+  height: 16px;
+  font-size: 0.58rem;
 }
 
 body.is-playing .action-group {
