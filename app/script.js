@@ -173,27 +173,31 @@ const CITY_ROAD_KEYS = new Set(CITY_ROADS.map((road) => `${road.x}:${road.y}`));
 const CITY_TRAFFIC_ROUTES = [
   {
     color: "#df5b4f",
-    speed: 0.000055,
+    speed: 0.000032,
     offset: 0,
-    points: [{ x: -0.4, y: 3.5 }, { x: 9.3, y: 3.5 }]
+    size: 0.9,
+    points: [{ x: 0.5, y: 3.5 }, { x: 8.5, y: 3.5 }]
   },
   {
     color: "#e7b84a",
-    speed: 0.000046,
+    speed: 0.000027,
     offset: 0.32,
-    points: [{ x: 9.2, y: 6.5 }, { x: -0.3, y: 6.5 }]
+    size: 0.82,
+    points: [{ x: 8.5, y: 6.5 }, { x: 0.5, y: 6.5 }]
   },
   {
     color: "#4b83cf",
-    speed: 0.00005,
+    speed: 0.000029,
     offset: 0.58,
-    points: [{ x: 2.5, y: -0.5 }, { x: 2.5, y: 8.4 }]
+    size: 0.86,
+    points: [{ x: 2.5, y: 0.5 }, { x: 2.5, y: 7.5 }]
   },
   {
-    color: "#ffffff",
-    speed: 0.000042,
+    color: "#f6f0df",
+    speed: 0.000024,
     offset: 0.77,
-    points: [{ x: 5.5, y: 8.2 }, { x: 5.5, y: -0.4 }]
+    size: 0.74,
+    points: [{ x: 5.5, y: 7.5 }, { x: 5.5, y: 0.5 }]
   }
 ];
 
@@ -1793,15 +1797,14 @@ function drawCityFrame(timestamp) {
   cityHitAreas = [];
 
   drawCityBackground(ctx, metrics);
-  drawEventAtmosphere(ctx, metrics, timestamp);
-  drawRiver(ctx, metrics, timestamp);
   drawCityTiles(ctx, metrics);
   drawCityItems(ctx, metrics, timestamp);
-  drawCityForeground(ctx, metrics, timestamp);
+  drawSceneColorGrade(ctx, metrics);
+  drawCityForeground(ctx, metrics);
 }
 
 function createCityMetrics(width, height) {
-  const tileW = Math.max(58, Math.min(132, (width - 10) / 8, (height - 150) / 4.65));
+  const tileW = Math.max(56, Math.min(118, width / 8.7, (height - 118) / 4.55));
   const tileH = tileW * 0.54;
 
   return {
@@ -1809,8 +1812,8 @@ function createCityMetrics(width, height) {
     height,
     tileW,
     tileH,
-    originX: width * 0.5,
-    originY: Math.max(74, height * 0.13)
+    originX: width * 0.52,
+    originY: Math.max(88, height * 0.15)
   };
 }
 
@@ -1841,40 +1844,60 @@ function getFootprintPoints(metrics, centerX, centerY, halfX, halfY, z = 0) {
 
 function drawCityBackground(ctx, metrics) {
   const sky = ctx.createLinearGradient(0, 0, metrics.width, metrics.height);
-  sky.addColorStop(0, "#d9efe7");
-  sky.addColorStop(0.45, "#eef6ea");
-  sky.addColorStop(1, "#cbdedc");
+  sky.addColorStop(0, "#dcece7");
+  sky.addColorStop(0.42, "#f4f2df");
+  sky.addColorStop(1, "#c2d7d1");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, metrics.width, metrics.height);
 
+  drawDistantSkyline(ctx, metrics);
+
+  const cityPlate = [
+    projectCityPoint(metrics, -0.6, -0.65),
+    projectCityPoint(metrics, CITY_GRID.columns + 0.65, -0.65),
+    projectCityPoint(metrics, CITY_GRID.columns + 0.65, CITY_GRID.rows + 0.55),
+    projectCityPoint(metrics, -0.6, CITY_GRID.rows + 0.55)
+  ];
+
   ctx.save();
-  ctx.globalAlpha = 0.28;
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 1;
+  ctx.shadowColor = "rgba(28, 48, 43, 0.2)";
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetY = 20;
+  fillPolygon(ctx, cityPlate, "rgba(229, 239, 229, 0.68)");
+  ctx.restore();
 
-  for (let x = -metrics.height; x < metrics.width + metrics.height; x += 52) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + metrics.height, metrics.height);
-    ctx.stroke();
-  }
+  strokePolygon(ctx, cityPlate, "rgba(255, 255, 255, 0.58)", 2);
+}
 
-  for (let x = 0; x < metrics.width + metrics.height; x += 52) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x - metrics.height, metrics.height);
-    ctx.stroke();
-  }
+function drawDistantSkyline(ctx, metrics) {
+  const baseY = Math.max(46, metrics.originY - metrics.tileW * 0.24);
+  const skyline = [
+    { x: 0.08, w: 0.035, h: 0.11 },
+    { x: 0.13, w: 0.052, h: 0.18 },
+    { x: 0.21, w: 0.044, h: 0.14 },
+    { x: 0.74, w: 0.04, h: 0.16 },
+    { x: 0.81, w: 0.058, h: 0.22 },
+    { x: 0.9, w: 0.038, h: 0.13 }
+  ];
 
+  ctx.save();
+  skyline.forEach((tower) => {
+    const x = metrics.width * tower.x;
+    const w = metrics.width * tower.w;
+    const h = metrics.height * tower.h;
+    const gradient = ctx.createLinearGradient(x, baseY - h, x, baseY);
+    gradient.addColorStop(0, "rgba(70, 104, 101, 0.22)");
+    gradient.addColorStop(1, "rgba(70, 104, 101, 0.06)");
+    drawRoundedRect(ctx, x, baseY - h, w, h, 8, gradient, "rgba(255, 255, 255, 0.12)");
+  });
   ctx.restore();
 }
 
-function drawEventAtmosphere(ctx, metrics, timestamp) {
+function drawSceneColorGrade(ctx, metrics) {
   const sceneClass = citySceneCache.scene.className;
-  const pulse = 0.5 + Math.sin(timestamp / 850) * 0.5;
 
   if (sceneClass === "city-map--risk") {
-    ctx.fillStyle = `rgba(177, 80, 64, ${0.08 + pulse * 0.05})`;
+    ctx.fillStyle = "rgba(177, 80, 64, 0.08)";
     ctx.fillRect(0, 0, metrics.width, metrics.height);
     return;
   }
@@ -1882,8 +1905,8 @@ function drawEventAtmosphere(ctx, metrics, timestamp) {
   if (sceneClass === "city-map--finance") {
     const beam = ctx.createLinearGradient(0, 0, metrics.width, metrics.height);
     beam.addColorStop(0, "rgba(69, 112, 184, 0)");
-    beam.addColorStop(0.52, `rgba(74, 127, 205, ${0.12 + pulse * 0.04})`);
-    beam.addColorStop(1, "rgba(232, 184, 74, 0.1)");
+    beam.addColorStop(0.52, "rgba(74, 127, 205, 0.1)");
+    beam.addColorStop(1, "rgba(232, 184, 74, 0.08)");
     ctx.fillStyle = beam;
     ctx.fillRect(0, 0, metrics.width, metrics.height);
     return;
@@ -1891,40 +1914,11 @@ function drawEventAtmosphere(ctx, metrics, timestamp) {
 
   if (sceneClass === "city-map--growth") {
     const glow = ctx.createRadialGradient(metrics.width * 0.48, metrics.height * 0.44, 80, metrics.width * 0.48, metrics.height * 0.44, metrics.width * 0.7);
-    glow.addColorStop(0, `rgba(58, 151, 99, ${0.12 + pulse * 0.05})`);
+    glow.addColorStop(0, "rgba(58, 151, 99, 0.11)");
     glow.addColorStop(1, "rgba(58, 151, 99, 0)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, metrics.width, metrics.height);
   }
-}
-
-function drawRiver(ctx, metrics, timestamp) {
-  const river = [
-    projectCityPoint(metrics, 7.2, -1.1),
-    projectCityPoint(metrics, 10.3, 1.4),
-    projectCityPoint(metrics, 9.9, 8.9),
-    projectCityPoint(metrics, 6.1, 8.7)
-  ];
-
-  const gradient = ctx.createLinearGradient(river[0].x, river[0].y, river[2].x, river[2].y);
-  gradient.addColorStop(0, "#8ccbd9");
-  gradient.addColorStop(1, "#4e98b5");
-  fillPolygon(ctx, river, gradient);
-
-  ctx.save();
-  ctx.globalAlpha = 0.35;
-  ctx.strokeStyle = "#e7fbff";
-  ctx.lineWidth = 2;
-
-  for (let index = 0; index < 7; index += 1) {
-    const offset = ((timestamp / 60 + index * 34) % 180) - 90;
-    ctx.beginPath();
-    ctx.moveTo(river[0].x + offset, river[0].y + index * 52);
-    ctx.quadraticCurveTo(river[0].x + 120 + offset, river[0].y + 40 + index * 52, river[0].x + 260 + offset, river[0].y + 20 + index * 52);
-    ctx.stroke();
-  }
-
-  ctx.restore();
 }
 
 function drawCityTiles(ctx, metrics) {
@@ -1951,48 +1945,88 @@ function drawCityTiles(ctx, metrics) {
 }
 
 function drawRoadTile(ctx, metrics, x, y, points) {
-  fillPolygon(ctx, points, "#4e6566");
-  strokePolygon(ctx, points, "rgba(255, 255, 255, 0.2)", 1);
+  fillPolygon(ctx, offsetPoints(points, 0, 8), "rgba(20, 35, 34, 0.16)");
+  fillPolygon(ctx, points, createPolygonGradient(ctx, points, "#52696b", "#344a4f"));
 
-  const center = projectCityPoint(metrics, x + 0.5, y + 0.5);
-  const horizontal = y === 3 || y === 6;
-  const from = horizontal ? projectCityPoint(metrics, x + 0.12, y + 0.5) : projectCityPoint(metrics, x + 0.5, y + 0.12);
-  const to = horizontal ? projectCityPoint(metrics, x + 0.88, y + 0.5) : projectCityPoint(metrics, x + 0.5, y + 0.88);
+  drawRoadCurbs(ctx, x, y, points);
+
+  const hasWest = isRoadTile(x - 1, y);
+  const hasEast = isRoadTile(x + 1, y);
+  const hasNorth = isRoadTile(x, y - 1);
+  const hasSouth = isRoadTile(x, y + 1);
+  const hasDiagonal = isRoadTile(x - 1, y - 1) || isRoadTile(x + 1, y + 1);
+
+  if (hasWest || hasEast) {
+    drawRoadLane(ctx, metrics, projectCityPoint(metrics, x + 0.16, y + 0.5), projectCityPoint(metrics, x + 0.84, y + 0.5));
+  }
+
+  if (hasNorth || hasSouth) {
+    drawRoadLane(ctx, metrics, projectCityPoint(metrics, x + 0.5, y + 0.16), projectCityPoint(metrics, x + 0.5, y + 0.84));
+  }
+
+  if (hasDiagonal && !hasWest && !hasEast && !hasNorth && !hasSouth) {
+    drawRoadLane(ctx, metrics, projectCityPoint(metrics, x + 0.18, y + 0.18), projectCityPoint(metrics, x + 0.82, y + 0.82));
+  }
+
+}
+
+function drawRoadCurbs(ctx, x, y, points) {
+  const edges = [
+    { neighbor: [x, y - 1], from: points[0], to: points[1] },
+    { neighbor: [x + 1, y], from: points[1], to: points[2] },
+    { neighbor: [x, y + 1], from: points[2], to: points[3] },
+    { neighbor: [x - 1, y], from: points[3], to: points[0] }
+  ];
 
   ctx.save();
-  ctx.globalAlpha = 0.65;
-  ctx.strokeStyle = "#e9f0dc";
-  ctx.lineWidth = Math.max(2, metrics.tileW * 0.025);
-  ctx.setLineDash([metrics.tileW * 0.12, metrics.tileW * 0.08]);
+  ctx.strokeStyle = "rgba(236, 244, 235, 0.78)";
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = "round";
+
+  edges.forEach((edge) => {
+    if (isRoadTile(edge.neighbor[0], edge.neighbor[1])) {
+      return;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(edge.from.x, edge.from.y);
+    ctx.lineTo(edge.to.x, edge.to.y);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function drawRoadLane(ctx, metrics, from, to) {
+  ctx.save();
+  ctx.globalAlpha = 0.62;
+  ctx.strokeStyle = "#efe8d4";
+  ctx.lineWidth = Math.max(1.4, metrics.tileW * 0.018);
+  ctx.setLineDash([metrics.tileW * 0.08, metrics.tileW * 0.08]);
   ctx.beginPath();
   ctx.moveTo(from.x, from.y);
   ctx.lineTo(to.x, to.y);
   ctx.stroke();
   ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.arc(center.x, center.y, metrics.tileW * 0.12, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 }
 
 function drawPlotTile(ctx, points, zone) {
   const fills = {
-    residential: "#bcd5c9",
-    business: "#c7d6df",
-    commerce: "#dcc8a5",
-    park: "#b7d78e",
-    waterfront: "#b8dce1",
-    empty: "#c9ddd2"
+    residential: ["#d7e5d8", "#abcbbc"],
+    business: ["#dae5ec", "#b6cad6"],
+    commerce: ["#eadbb8", "#d0b06f"],
+    park: ["#cbe4a6", "#99c773"],
+    waterfront: ["#dbe7da", "#b9d0c3"],
+    empty: ["#dce8df", "#bfd4ca"]
   };
+  const palette = fills[zone] || fills.empty;
+  const parcel = insetPolygon(points, 0.86);
 
-  fillPolygon(ctx, offsetPoints(points, 0, 13), "rgba(31, 52, 45, 0.13)");
-  fillPolygon(ctx, points, fills[zone] || fills.empty);
-  strokePolygon(ctx, points, "rgba(255, 255, 255, 0.6)", 1.3);
-  strokePolygon(ctx, points, "rgba(40, 78, 61, 0.18)", 1);
+  fillPolygon(ctx, offsetPoints(points, 0, 12), "rgba(31, 52, 45, 0.13)");
+  fillPolygon(ctx, points, "#edf3ec");
+  fillPolygon(ctx, parcel, createPolygonGradient(ctx, parcel, palette[0], palette[1]));
+  strokePolygon(ctx, points, "rgba(255, 255, 255, 0.72)", 1.4);
+  strokePolygon(ctx, parcel, "rgba(40, 78, 61, 0.2)", 1.2);
 }
 
 function drawCityItems(ctx, metrics, timestamp) {
@@ -2020,7 +2054,7 @@ function drawCityItems(ctx, metrics, timestamp) {
     .sort((left, right) => left.depth - right.depth)
     .forEach((item) => {
       if (item.type === "car") {
-        drawCar(ctx, metrics, item.position, item.nextPosition, item.route.color);
+        drawCar(ctx, metrics, item.position, item.nextPosition, item.route.color, item.route.size);
         return;
       }
 
@@ -2045,50 +2079,89 @@ function drawPlotContent(ctx, metrics, plot, property, timestamp) {
 
 function drawZoneDetails(ctx, metrics, plot) {
   if (plot.zone === "park") {
-    drawTree(ctx, metrics, plot.x + 0.28, plot.y + 0.42, 0.95);
-    drawTree(ctx, metrics, plot.x + 0.68, plot.y + 0.62, 0.72);
+    drawTilePath(ctx, metrics, plot, { x: 0.18, y: 0.62 }, { x: 0.82, y: 0.38 }, "rgba(245, 238, 198, 0.72)", 0.035);
+    drawTree(ctx, metrics, plot.x + 0.24, plot.y + 0.36, 0.92);
+    drawTree(ctx, metrics, plot.x + 0.62, plot.y + 0.58, 0.76);
+    drawTree(ctx, metrics, plot.x + 0.78, plot.y + 0.28, 0.58);
+    drawBench(ctx, metrics, plot.x + 0.48, plot.y + 0.66, 0.78);
     return;
   }
 
   if (plot.zone === "waterfront") {
-    const pier = getFootprintPoints(metrics, plot.x + 0.5, plot.y + 0.52, 0.24, 0.08, 2);
-    fillPolygon(ctx, pier, "rgba(122, 92, 61, 0.78)");
+    drawTilePath(ctx, metrics, plot, { x: 0.18, y: 0.62 }, { x: 0.82, y: 0.38 }, "rgba(246, 240, 215, 0.62)", 0.035);
+    drawStreetLight(ctx, metrics, plot.x + 0.24, plot.y + 0.7, 0.7);
+    drawTree(ctx, metrics, plot.x + 0.74, plot.y + 0.34, 0.5);
+    return;
+  }
+
+  if (plot.zone === "business") {
+    drawTilePath(ctx, metrics, plot, { x: 0.18, y: 0.76 }, { x: 0.82, y: 0.28 }, "rgba(242, 246, 245, 0.48)", 0.032);
+    drawStreetLight(ctx, metrics, plot.x + 0.25, plot.y + 0.7, 0.78);
+    drawStreetLight(ctx, metrics, plot.x + 0.76, plot.y + 0.28, 0.7);
     return;
   }
 
   if (plot.zone === "commerce") {
     drawParkingLines(ctx, metrics, plot);
+    drawStreetLight(ctx, metrics, plot.x + 0.26, plot.y + 0.78, 0.72);
+    return;
+  }
+
+  if (plot.zone === "residential") {
+    drawTilePath(ctx, metrics, plot, { x: 0.24, y: 0.74 }, { x: 0.76, y: 0.28 }, "rgba(246, 239, 209, 0.52)", 0.028);
+    drawTree(ctx, metrics, plot.x + 0.23, plot.y + 0.38, 0.58);
+    drawTree(ctx, metrics, plot.x + 0.78, plot.y + 0.64, 0.54);
   }
 }
 
 function drawEmptyFoundation(ctx, metrics, plot) {
   const base = getFootprintPoints(metrics, plot.x + 0.5, plot.y + 0.52, 0.27, 0.23, 2);
-  fillPolygon(ctx, base, "rgba(255, 255, 255, 0.28)");
-  strokePolygon(ctx, base, "rgba(44, 82, 68, 0.24)", 2);
+  fillPolygon(ctx, offsetPoints(base, 0, 5), "rgba(39, 61, 55, 0.1)");
+  fillPolygon(ctx, base, "rgba(255, 255, 255, 0.34)");
+
+  ctx.save();
+  ctx.setLineDash([7, 6]);
+  strokePolygon(ctx, base, "rgba(44, 82, 68, 0.34)", 2);
+  ctx.restore();
+
+  const labelPoint = projectCityPoint(metrics, plot.x + 0.5, plot.y + 0.52, 9);
+  ctx.save();
+  ctx.font = `800 ${Math.max(8, metrics.tileW * 0.075)}px Trebuchet MS, sans-serif`;
+  ctx.fillStyle = "rgba(33, 57, 49, 0.52)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("УЧАСТОК", labelPoint.x, labelPoint.y);
+  ctx.restore();
 }
 
 function drawBuilding(ctx, metrics, plot, property, timestamp) {
   const typeKey = getPropertyTypeKey(property);
   const level = Math.min(property.level, 6);
   const palettes = {
-    housing: { front: "#78aa84", side: "#5e8a6b", sideDark: "#4d735d", top: "#d9e7d9", window: "#fff0a7", accent: "#35634e" },
-    office: { front: "#6b91c8", side: "#456da5", sideDark: "#365989", top: "#c9def4", window: "#dff6ff", accent: "#254b78" },
-    retail: { front: "#cf8d43", side: "#a8672e", sideDark: "#834f2a", top: "#f1d3a4", window: "#fff0be", accent: "#743b25" }
+    housing: { front: "#7eac88", side: "#5e8a6b", sideDark: "#496f58", top: "#dfe7d6", window: "#ffeaa3", accent: "#335d4a" },
+    office: { front: "#6e98cf", side: "#476fa8", sideDark: "#365989", top: "#d8e8f7", window: "#e4fbff", accent: "#244a78" },
+    retail: { front: "#d39145", side: "#a8672e", sideDark: "#7c4a27", top: "#f2d7a4", window: "#fff2bd", accent: "#743b25" }
   };
   const palette = palettes[typeKey] || palettes.housing;
-  const height = metrics.tileW * (typeKey === "office" ? 0.95 + level * 0.28 : typeKey === "retail" ? 0.5 + level * 0.12 : 0.7 + level * 0.18);
+  const height = metrics.tileW * (typeKey === "office" ? 0.78 + level * 0.2 : typeKey === "retail" ? 0.44 + level * 0.11 : 0.62 + level * 0.16);
   const footprint = typeKey === "retail"
-    ? { halfX: 0.36, halfY: 0.3 }
+    ? { halfX: 0.38, halfY: 0.29 }
     : typeKey === "office"
-      ? { halfX: 0.24, halfY: 0.25 }
-      : { halfX: 0.29, halfY: 0.27 };
+      ? { halfX: 0.24, halfY: 0.24 }
+      : { halfX: 0.3, halfY: 0.27 };
 
   const centerX = plot.x + 0.5;
   const centerY = plot.y + 0.52;
-  const rows = typeKey === "retail" ? 2 + level : Math.max(4, Math.round(height / 20));
+  const rows = typeKey === "retail" ? 2 + level : Math.max(4, Math.round(height / 18));
   const cols = typeKey === "office" ? 4 : 3;
 
-  drawPrism(ctx, metrics, {
+  drawBuildingPodium(ctx, metrics, centerX, centerY, footprint.halfX + 0.06, footprint.halfY + 0.05, typeKey);
+
+  if (typeKey === "housing") {
+    drawLowWing(ctx, metrics, centerX - 0.16, centerY + 0.02, 0.14, 0.2, height * 0.68, palette);
+  }
+
+  const prism = drawPrism(ctx, metrics, {
     centerX,
     centerY,
     halfX: footprint.halfX,
@@ -2100,29 +2173,62 @@ function drawBuilding(ctx, metrics, plot, property, timestamp) {
   });
 
   if (typeKey === "office") {
+    drawOfficeFacadeHighlights(ctx, prism.base, prism.top);
+    drawRooftopEquipment(ctx, metrics, centerX, centerY, height, palette.accent);
     drawOfficeAntenna(ctx, metrics, centerX, centerY, height, palette.accent);
   }
 
   if (typeKey === "retail") {
     drawRetailAwning(ctx, metrics, centerX, centerY, footprint.halfX, footprint.halfY, height);
+    drawRetailSign(ctx, metrics, centerX, centerY, height);
   }
 
   if (typeKey === "housing") {
+    drawHousingBalconies(ctx, prism.base, prism.top, Math.min(5, rows));
     drawTree(ctx, metrics, plot.x + 0.22, plot.y + 0.73, 0.64);
+    drawTree(ctx, metrics, plot.x + 0.78, plot.y + 0.35, 0.52);
   }
 
   if (state.quarter - property.createdAtQuarter <= 1) {
-    drawConstructionSpark(ctx, metrics, centerX, centerY, height, timestamp);
+    drawConstructionDetails(ctx, metrics, centerX, centerY, height, timestamp);
   }
 
   drawBuildingLabel(ctx, metrics, centerX, centerY, height, `${getShortTypeLabel(property)}-${property.id}`);
+}
+
+function drawBuildingPodium(ctx, metrics, centerX, centerY, halfX, halfY, typeKey) {
+  const palette = {
+    housing: "#dfe8d4",
+    office: "#dce8ee",
+    retail: "#ead6ad"
+  };
+  const base = getFootprintPoints(metrics, centerX, centerY, halfX, halfY, 0);
+  const shadow = getFootprintPoints(metrics, centerX, centerY, halfX + 0.02, halfY + 0.02, 0);
+
+  fillPolygon(ctx, offsetPoints(shadow, 0, 5), "rgba(28, 44, 40, 0.12)");
+  fillPolygon(ctx, base, palette[typeKey] || "#dfe8d4");
+  strokePolygon(ctx, base, "rgba(255, 255, 255, 0.68)", 1.4);
+  strokePolygon(ctx, insetPolygon(base, 0.78), "rgba(54, 83, 72, 0.16)", 1);
+}
+
+function drawLowWing(ctx, metrics, centerX, centerY, halfX, halfY, height, palette) {
+  drawPrism(ctx, metrics, {
+    centerX,
+    centerY,
+    halfX,
+    halfY,
+    height,
+    palette,
+    rows: 3,
+    cols: 2
+  });
 }
 
 function drawPrism(ctx, metrics, options) {
   const base = getFootprintPoints(metrics, options.centerX, options.centerY, options.halfX, options.halfY, 0);
   const top = getFootprintPoints(metrics, options.centerX, options.centerY, options.halfX, options.halfY, options.height);
 
-  fillPolygon(ctx, offsetPoints(base, 14, 22), "rgba(26, 43, 39, 0.18)");
+  fillPolygon(ctx, offsetPoints(base, 6, 8), "rgba(26, 43, 39, 0.18)");
   fillPolygon(ctx, [base[0], base[3], top[3], top[0]], options.palette.sideDark);
   fillPolygon(ctx, [base[1], base[2], top[2], top[1]], options.palette.side);
   fillPolygon(ctx, [base[3], base[2], top[2], top[3]], options.palette.front);
@@ -2131,6 +2237,9 @@ function drawPrism(ctx, metrics, options) {
   drawWindowGrid(ctx, base[3], base[2], top[2], top[3], options.rows, options.cols, options.palette.window);
   drawWindowGrid(ctx, base[1], base[2], top[2], top[1], options.rows, 2, "rgba(218, 244, 255, 0.62)");
   strokePolygon(ctx, top, "rgba(255, 255, 255, 0.5)", 1);
+  strokePolygon(ctx, [base[3], base[2], top[2], top[3]], "rgba(255, 255, 255, 0.2)", 1);
+
+  return { base, top };
 }
 
 function drawWindowGrid(ctx, bottomLeft, bottomRight, topRight, topLeft, rows, cols, color) {
@@ -2151,6 +2260,43 @@ function drawWindowGrid(ctx, bottomLeft, bottomRight, topRight, topLeft, rows, c
         bilinearPoint(bottomLeft, bottomRight, topRight, topLeft, u1, v2)
       ];
       fillPolygon(ctx, windowPoints, color);
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawOfficeFacadeHighlights(ctx, base, top) {
+  const stripLeft = bilinearPoint(base[3], base[2], top[2], top[3], 0.18, 0.02);
+  const stripRight = bilinearPoint(base[3], base[2], top[2], top[3], 0.33, 0.02);
+  const stripTopRight = bilinearPoint(base[3], base[2], top[2], top[3], 0.33, 0.98);
+  const stripTopLeft = bilinearPoint(base[3], base[2], top[2], top[3], 0.18, 0.98);
+
+  fillPolygon(ctx, [stripLeft, stripRight, stripTopRight, stripTopLeft], "rgba(255, 255, 255, 0.16)");
+}
+
+function drawRooftopEquipment(ctx, metrics, centerX, centerY, height, color) {
+  const unit = getFootprintPoints(metrics, centerX + 0.08, centerY - 0.05, 0.07, 0.045, height + 2);
+  fillPolygon(ctx, unit, "rgba(255, 255, 255, 0.38)");
+  strokePolygon(ctx, unit, color, 1.2);
+}
+
+function drawHousingBalconies(ctx, base, top, rows) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.62)";
+  ctx.lineWidth = 1.2;
+
+  for (let row = 1; row <= rows; row += 1) {
+    const v = row / (rows + 1);
+    for (let col = 0; col < 2; col += 1) {
+      const u1 = 0.18 + col * 0.34;
+      const u2 = u1 + 0.18;
+      const left = bilinearPoint(base[3], base[2], top[2], top[3], u1, v);
+      const right = bilinearPoint(base[3], base[2], top[2], top[3], u2, v);
+      ctx.beginPath();
+      ctx.moveTo(left.x, left.y + 4);
+      ctx.lineTo(right.x, right.y + 4);
+      ctx.stroke();
     }
   }
 
@@ -2187,6 +2333,22 @@ function drawRetailAwning(ctx, metrics, centerX, centerY, halfX, halfY, height) 
   ctx.restore();
 }
 
+function drawRetailSign(ctx, metrics, centerX, centerY, height) {
+  const point = projectCityPoint(metrics, centerX, centerY + 0.25, height * 0.55);
+  const width = Math.max(32, metrics.tileW * 0.32);
+  const signHeight = Math.max(13, metrics.tileW * 0.11);
+
+  drawRoundedRect(ctx, point.x - width / 2, point.y - signHeight / 2, width, signHeight, 5, "#f7e1a6", "rgba(116, 59, 37, 0.22)");
+
+  ctx.save();
+  ctx.fillStyle = "#743b25";
+  ctx.font = `900 ${Math.max(8, metrics.tileW * 0.07)}px Trebuchet MS, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("SHOP", point.x, point.y + 0.5);
+  ctx.restore();
+}
+
 function drawBuildingLabel(ctx, metrics, centerX, centerY, height, label) {
   const point = projectCityPoint(metrics, centerX, centerY, height + metrics.tileW * 0.14);
   ctx.save();
@@ -2201,21 +2363,23 @@ function drawBuildingLabel(ctx, metrics, centerX, centerY, height, label) {
   ctx.restore();
 }
 
-function drawConstructionSpark(ctx, metrics, centerX, centerY, height, timestamp) {
-  const point = projectCityPoint(metrics, centerX + 0.18, centerY - 0.16, height * 0.72);
-  const pulse = Math.sin(timestamp / 120) * 0.5 + 0.5;
+function drawConstructionDetails(ctx, metrics, centerX, centerY, height) {
+  const base = projectCityPoint(metrics, centerX + 0.26, centerY - 0.18, 0);
+  const top = projectCityPoint(metrics, centerX + 0.26, centerY - 0.18, height * 0.9);
+  const armEnd = projectCityPoint(metrics, centerX + 0.58, centerY - 0.18, height * 0.86);
+
   ctx.save();
-  ctx.strokeStyle = `rgba(245, 190, 71, ${0.35 + pulse * 0.45})`;
+  ctx.strokeStyle = "rgba(93, 71, 48, 0.62)";
   ctx.lineWidth = 2;
-
-  for (let index = 0; index < 5; index += 1) {
-    const angle = (Math.PI * 2 * index) / 5 + timestamp / 460;
-    ctx.beginPath();
-    ctx.moveTo(point.x, point.y);
-    ctx.lineTo(point.x + Math.cos(angle) * 15, point.y + Math.sin(angle) * 15);
-    ctx.stroke();
-  }
-
+  ctx.beginPath();
+  ctx.moveTo(base.x, base.y);
+  ctx.lineTo(top.x, top.y);
+  ctx.lineTo(armEnd.x, armEnd.y);
+  ctx.stroke();
+  ctx.fillStyle = "#d6a343";
+  ctx.beginPath();
+  ctx.arc(armEnd.x, armEnd.y, 3.5, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -2232,6 +2396,48 @@ function drawSoldLot(ctx, metrics, plot) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("SOLD", sign.x, sign.y);
+  ctx.restore();
+}
+
+function drawTilePath(ctx, metrics, plot, from, to, color, widthRatio) {
+  const start = projectCityPoint(metrics, plot.x + from.x, plot.y + from.y, 3);
+  const end = projectCityPoint(metrics, plot.x + to.x, plot.y + to.y, 3);
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, metrics.tileW * widthRatio);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBench(ctx, metrics, x, y, scale = 1) {
+  const point = projectCityPoint(metrics, x, y, 5);
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.rotate(-0.38);
+  drawRoundedRect(ctx, -metrics.tileW * 0.08 * scale, -metrics.tileW * 0.018 * scale, metrics.tileW * 0.16 * scale, metrics.tileW * 0.036 * scale, 3, "#9b663a", "rgba(56, 37, 22, 0.18)");
+  ctx.restore();
+}
+
+function drawStreetLight(ctx, metrics, x, y, scale = 1) {
+  const base = projectCityPoint(metrics, x, y, 0);
+  const height = metrics.tileW * 0.22 * scale;
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(48, 64, 61, 0.7)";
+  ctx.lineWidth = Math.max(1.2, metrics.tileW * 0.012);
+  ctx.beginPath();
+  ctx.moveTo(base.x, base.y);
+  ctx.lineTo(base.x, base.y - height);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255, 232, 154, 0.88)";
+  ctx.beginPath();
+  ctx.arc(base.x, base.y - height, metrics.tileW * 0.025 * scale, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -2271,46 +2477,48 @@ function drawTree(ctx, metrics, x, y, scale = 1) {
   ctx.restore();
 }
 
-function drawCar(ctx, metrics, position, nextPosition, color) {
-  const point = projectCityPoint(metrics, position.x, position.y, 5);
-  const next = projectCityPoint(metrics, nextPosition.x, nextPosition.y, 5);
+function drawCar(ctx, metrics, position, nextPosition, color, size = 1) {
+  const point = projectCityPoint(metrics, position.x, position.y, 1);
+  const next = projectCityPoint(metrics, nextPosition.x, nextPosition.y, 1);
   const angle = Math.atan2(next.y - point.y, next.x - point.x);
-  const width = metrics.tileW * 0.31;
-  const height = metrics.tileW * 0.16;
+  const width = metrics.tileW * 0.24 * size;
+  const height = metrics.tileW * 0.115 * size;
 
   ctx.save();
   ctx.translate(point.x, point.y);
   ctx.rotate(angle);
+  drawRoundedRect(ctx, -width * 0.56, -height * 0.18, width * 1.12, height * 0.52, height * 0.28, "rgba(12, 27, 28, 0.2)", "transparent");
   drawRoundedRect(ctx, -width / 2, -height / 2, width, height, height * 0.35, color, "rgba(20, 36, 34, 0.25)");
-  drawRoundedRect(ctx, -width * 0.12, -height * 0.42, width * 0.33, height * 0.84, height * 0.2, "rgba(213, 237, 244, 0.85)", "transparent");
+  drawRoundedRect(ctx, -width * 0.12, -height * 0.38, width * 0.32, height * 0.76, height * 0.18, "rgba(213, 237, 244, 0.85)", "transparent");
   ctx.fillStyle = "#222f31";
   ctx.beginPath();
-  ctx.arc(-width * 0.28, height * 0.52, height * 0.22, 0, Math.PI * 2);
-  ctx.arc(width * 0.28, height * 0.52, height * 0.22, 0, Math.PI * 2);
+  ctx.arc(-width * 0.28, height * 0.46, height * 0.19, 0, Math.PI * 2);
+  ctx.arc(width * 0.28, height * 0.46, height * 0.19, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
 
-function drawCityForeground(ctx, metrics, timestamp) {
-  if (citySceneCache.scene.className !== "city-map--culture") {
-    return;
-  }
-
-  ctx.save();
-  ctx.globalAlpha = 0.75;
-
-  for (let index = 0; index < 18; index += 1) {
-    const x = (index * 83 + timestamp / 18) % metrics.width;
-    const y = 48 + ((index * 37 + timestamp / 34) % (metrics.height * 0.55));
-    ctx.fillStyle = index % 2 ? "#d68c2d" : "#2b8b57";
-    ctx.fillRect(x, y, 4, 9);
-  }
-
-  ctx.restore();
+function drawCityForeground(ctx, metrics) {
+  const vignette = ctx.createRadialGradient(
+    metrics.width * 0.5,
+    metrics.height * 0.42,
+    metrics.width * 0.2,
+    metrics.width * 0.5,
+    metrics.height * 0.5,
+    metrics.width * 0.76
+  );
+  vignette.addColorStop(0, "rgba(255, 255, 255, 0)");
+  vignette.addColorStop(1, "rgba(33, 55, 49, 0.14)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, metrics.width, metrics.height);
 }
 
 function getCityPlotAt(x, y) {
   return CITY_PLOTS.find((plot) => plot.x === x && plot.y === y);
+}
+
+function isRoadTile(x, y) {
+  return CITY_ROAD_KEYS.has(`${x}:${y}`);
 }
 
 function getRoutePosition(route, timestamp) {
@@ -2431,6 +2639,30 @@ function strokePolygon(ctx, points, strokeStyle, lineWidth = 1) {
 
 function offsetPoints(points, x, y) {
   return points.map((point) => ({ x: point.x + x, y: point.y + y }));
+}
+
+function insetPolygon(points, factor) {
+  const center = points.reduce(
+    (accumulator, point) => ({
+      x: accumulator.x + point.x / points.length,
+      y: accumulator.y + point.y / points.length
+    }),
+    { x: 0, y: 0 }
+  );
+
+  return points.map((point) => ({
+    x: center.x + (point.x - center.x) * factor,
+    y: center.y + (point.y - center.y) * factor
+  }));
+}
+
+function createPolygonGradient(ctx, points, topColor, bottomColor) {
+  const top = Math.min(...points.map((point) => point.y));
+  const bottom = Math.max(...points.map((point) => point.y));
+  const gradient = ctx.createLinearGradient(0, top, 0, bottom);
+  gradient.addColorStop(0, topColor);
+  gradient.addColorStop(1, bottomColor);
+  return gradient;
 }
 
 function bilinearPoint(bottomLeft, bottomRight, topRight, topLeft, u, v) {
