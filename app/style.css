@@ -716,6 +716,12 @@ body.is-playing .game-board {
   line-height: 1.35;
 }
 
+.action-card-button.is-selected {
+  outline: 3px solid rgba(241, 190, 78, 0.92);
+  outline-offset: 3px;
+  box-shadow: 0 14px 30px rgba(214, 140, 45, 0.24);
+}
+
 .action-details {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -1175,25 +1181,6 @@ body.is-playing .city-map.city-map--canvas {
   transform: rotate(15deg);
   background: linear-gradient(90deg, rgba(56, 135, 174, 0.2), rgba(75, 158, 192, 0.38), rgba(255, 255, 255, 0.18));
   filter: blur(0.2px);
-}
-
-.city-map__skyline {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.city-map__skyline::before {
-  content: "";
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 20px;
-  height: 36px;
-  border-radius: 999px;
-  background: rgba(25, 54, 46, 0.08);
-  filter: blur(10px);
 }
 
 .city-grid {
@@ -1730,7 +1717,7 @@ select:focus {
 
 .property-summary-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(110px, 0.8fr));
+  grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(100px, 0.72fr));
   gap: 10px;
 }
 
@@ -2337,8 +2324,7 @@ code {
 }
 
 .city-map::before,
-.city-map::after,
-.city-map__skyline {
+.city-map::after {
   content: none;
   display: none;
 }
@@ -2760,20 +2746,25 @@ code {
   filter: saturate(1.04) contrast(1.02);
 }
 
+.city-map--placing .city-canvas {
+  cursor: crosshair;
+}
+
 .city-hud {
   position: absolute;
-  left: 18px;
+  left: 14px;
   top: auto;
-  bottom: 18px;
+  bottom: 14px;
   z-index: 4;
   display: grid;
-  gap: 8px;
-  width: min(390px, calc(100% - 36px));
+  gap: 6px;
+  width: min(330px, calc(100% - 28px));
   pointer-events: none;
 }
 
 .city-hud__event,
-.city-hud__meta {
+.city-hud__meta,
+.city-hud__placement {
   border: 1px solid rgba(255, 255, 255, 0.5);
   background: rgba(21, 39, 36, 0.82);
   color: #ffffff;
@@ -2781,16 +2772,51 @@ code {
   backdrop-filter: blur(14px);
 }
 
-.city-hud__event {
+.city-hud__placement {
+  display: grid;
+  gap: 7px;
   padding: 14px 16px;
   border-radius: 18px;
+  color: #ffffff;
+  background: rgba(24, 76, 59, 0.9);
+  pointer-events: auto;
+}
+
+.city-hud__placement span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.city-hud__placement p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+  line-height: 1.42;
+}
+
+.city-hud__placement .button {
+  justify-self: start;
+  min-height: 34px;
+  margin-top: 2px;
+  padding: 6px 11px;
+  border-color: rgba(255, 255, 255, 0.26);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.city-hud__event {
+  padding: 10px 12px;
+  border-radius: 15px;
 }
 
 .city-hud__event span {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 0.78rem;
+  font-size: 0.66rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2798,19 +2824,19 @@ code {
 
 .city-hud__event strong {
   display: block;
-  font-size: 0.98rem;
-  line-height: 1.35;
+  font-size: 0.84rem;
+  line-height: 1.3;
 }
 
 .city-hud__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   width: fit-content;
   max-width: 100%;
-  padding: 9px 11px;
+  padding: 7px 9px;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 800;
 }
 
@@ -2851,7 +2877,7 @@ code {
 .city-tooltip {
   position: absolute;
   z-index: 6;
-  width: 220px;
+  width: 280px;
   padding: 12px 13px;
   border: 1px solid rgba(255, 255, 255, 0.66);
   border-radius: 14px;
@@ -2873,6 +2899,36 @@ code {
   color: rgba(255, 255, 255, 0.78);
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+.city-tooltip__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 9px 0;
+}
+
+.city-tooltip__metrics b {
+  padding: 6px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.72rem;
+}
+
+.city-tooltip small,
+.city-tooltip em {
+  display: block;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.74rem;
+  line-height: 1.38;
+}
+
+.city-tooltip em {
+  margin-top: 7px;
+  color: #f4cb70;
+  font-style: normal;
+  font-weight: 900;
 }
 
 @media (max-width: 920px) {
@@ -2902,6 +2958,16 @@ code {
 
   .city-hud__meta {
     border-radius: 14px;
+  }
+}
+
+@media (max-width: 980px) {
+  .property-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .property-main-number {
+    grid-column: 1 / -1;
   }
 }
 

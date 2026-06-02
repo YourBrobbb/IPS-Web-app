@@ -160,12 +160,51 @@ const CITY_PLOTS = [
   { name: "Парк сделок", x: 8, y: 7, zone: "park" }
 ];
 
+const CITY_PUBLIC_ZONES = new Set(["park", "waterfront"]);
+
+const CITY_ZONE_PROFILES = {
+  residential: {
+    label: "Жилой район",
+    baseDemand: 62,
+    reputationEffect: 1,
+    expenseBonus: 0,
+    incomeBonus: { housing: 0.1, office: -0.06, retail: 0.04 }
+  },
+  business: {
+    label: "Деловой район",
+    baseDemand: 61,
+    reputationEffect: 0,
+    expenseBonus: 0.02,
+    incomeBonus: { housing: -0.08, office: 0.14, retail: 0.06 }
+  },
+  commerce: {
+    label: "Торговый район",
+    baseDemand: 68,
+    reputationEffect: 0,
+    expenseBonus: 0.015,
+    incomeBonus: { housing: -0.05, office: 0.04, retail: 0.16 }
+  },
+  park: {
+    label: "Городской парк",
+    baseDemand: 76,
+    reputationEffect: 0,
+    expenseBonus: 0,
+    incomeBonus: { housing: 0, office: 0, retail: 0 }
+  },
+  waterfront: {
+    label: "Городской променад",
+    baseDemand: 72,
+    reputationEffect: 0,
+    expenseBonus: 0,
+    incomeBonus: { housing: 0, office: 0, retail: 0 }
+  }
+};
+
 const CITY_ROADS = [
   ...Array.from({ length: CITY_GRID.columns }, (_, x) => ({ x, y: 3 })),
   ...Array.from({ length: CITY_GRID.columns }, (_, x) => ({ x, y: 6 })),
   ...Array.from({ length: CITY_GRID.rows }, (_, y) => ({ x: 2, y })),
-  ...Array.from({ length: CITY_GRID.rows }, (_, y) => ({ x: 5, y })),
-  ...Array.from({ length: 4 }, (_, index) => ({ x: index + 5, y: index }))
+  ...Array.from({ length: CITY_GRID.rows }, (_, y) => ({ x: 5, y }))
 ];
 
 const CITY_ROAD_KEYS = new Set(CITY_ROADS.map((road) => `${road.x}:${road.y}`));
@@ -220,6 +259,9 @@ let state = null;
 let cityAnimationFrameId = null;
 let citySceneCache = null;
 let cityHitAreas = [];
+let pendingBuildType = null;
+let cityHoveredPlotId = null;
+let citySuggestedPlotId = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -319,9 +361,9 @@ function bindEvents() {
   elements.showAboutButton.addEventListener("click", () => scrollToSection(elements.aboutSection));
   elements.advisorPanel.addEventListener("click", handleAdvisorPanelClick);
 
-  elements.buildHousingButton.addEventListener("click", () => performAction(() => buildProperty("housing")));
-  elements.buildOfficeButton.addEventListener("click", () => performAction(() => buildProperty("office")));
-  elements.buildRetailButton.addEventListener("click", () => performAction(() => buildProperty("retail")));
+  elements.buildHousingButton.addEventListener("click", () => beginBuildingPlacement("housing"));
+  elements.buildOfficeButton.addEventListener("click", () => beginBuildingPlacement("office"));
+  elements.buildRetailButton.addEventListener("click", () => beginBuildingPlacement("retail"));
   elements.upgradeSelect.addEventListener("change", syncSellSelectWithVisibleObject);
   elements.upgradeButton.addEventListener("click", () => performAction(() => upgradeProperty(Number(elements.upgradeSelect.value))));
   elements.sellButton.addEventListener("click", () => performAction(() => sellProperty(Number(elements.sellSelect.value))));
@@ -387,6 +429,7 @@ function normalizeLoadedState(rawState) {
   };
 
   normalizedState.properties = Array.isArray(rawState.properties) ? rawState.properties : [];
+  migratePropertyPlots(normalizedState.properties);
   normalizedState.eventHistory = Array.isArray(rawState.eventHistory) ? rawState.eventHistory.slice(0, 5) : [];
   normalizedState.timeline = Array.isArray(rawState.timeline) && rawState.timeline.length
     ? rawState.timeline
@@ -399,6 +442,7 @@ function normalizeLoadedState(rawState) {
 }
 
 function startNewGame() {
+  cancelBuildingPlacement(true);
   state = createInitialState();
   saveGame(true);
   closeEndgameModal();
@@ -414,6 +458,7 @@ function resetProgress() {
   }
 
   clearSavedGame();
+  cancelBuildingPlacement(true);
   state = createInitialState();
   closeEndgameModal();
   showStartScreen();
@@ -428,6 +473,7 @@ function performAction(actionHandler) {
     return;
   }
 
+  cancelBuildingPlacement(true);
   const actionResult = actionHandler();
   if (!actionResult.success) {
     showToast(actionResult.message, actionResult.tone || "warning");
@@ -438,7 +484,50 @@ function performAction(actionHandler) {
   showToast(actionResult.message, actionResult.tone || "success");
 }
 
-function buildProperty(typeKey) {
+function beginBuildingPlacement(typeKey, options = {}) {
+  const config = PROPERTY_TYPES[typeKey];
+  if (!config || state.gameOver) {
+    showToast("Строительство сейчас недоступно.", "warning");
+    return;
+  }
+
+  if (state.money < config.baseCost) {
+    showToast(`Для строительства нужно ${formatMoney(config.baseCost)}.`, "warning");
+    return;
+  }
+
+  const availablePlots = getAvailableBuildPlots();
+  if (!availablePlots.length) {
+    showToast("На карте больше нет свободных участков для строительства.", "warning");
+    return;
+  }
+
+  const bestPlot = getBestPlotForType(typeKey);
+  pendingBuildType = typeKey;
+  citySuggestedPlotId = options.suggestedPlotId || (bestPlot ? bestPlot.plotId : null);
+  cityHoveredPlotId = citySuggestedPlotId;
+  renderActionControls();
+  renderCityScene();
+  showToast(`Выберите участок на карте для объекта «${config.type}». Наведите курсор, чтобы сравнить бонусы.`, "info");
+}
+
+function cancelBuildingPlacement(silent = false) {
+  if (!pendingBuildType) {
+    return;
+  }
+
+  pendingBuildType = null;
+  cityHoveredPlotId = null;
+  citySuggestedPlotId = null;
+
+  if (!silent && state) {
+    renderActionControls();
+    renderCityScene();
+    showToast("Выбор участка отменён.", "info");
+  }
+}
+
+function buildProperty(typeKey, plotId) {
   const config = PROPERTY_TYPES[typeKey];
   if (!config) {
     return { success: false, message: "Неизвестный тип недвижимости.", tone: "danger" };
@@ -448,20 +537,32 @@ function buildProperty(typeKey) {
     return { success: false, message: "Недостаточно денег для строительства.", tone: "warning" };
   }
 
-  state.money -= config.baseCost;
+  const plot = getCityPlotById(plotId);
+  if (!plot || !isBuildableCityPlot(plot)) {
+    return { success: false, message: "Выберите доступный участок на карте.", tone: "warning" };
+  }
 
-  const property = createProperty(config);
+  if (getPropertyAtPlot(plotId)) {
+    return { success: false, message: "Этот участок уже занят. Выберите другой.", tone: "warning" };
+  }
+
+  const evaluation = getPlotEvaluation(plot, typeKey);
+  state.money -= config.baseCost;
+  state.reputation = clamp(state.reputation + evaluation.reputationEffect, 0, 100);
+  state.demand = clamp(state.demand + evaluation.demandEffect, 0, 100);
+
+  const property = createProperty(config, plot, evaluation);
   state.properties.push(property);
 
   return {
     success: true,
-    message: `${property.name} введён в портфель.`,
+    message: `${property.name} построен в районе «${plot.name}». Доход участка: ${formatSignedPercent(evaluation.incomeMultiplier - 1)}, поток: ${evaluation.demandScore}/100.`,
     tone: "success",
-    actionLabel: `Построен объект: ${property.name}`
+    actionLabel: `Построен объект: ${property.name} • ${plot.name}`
   };
 }
 
-function createProperty(config) {
+function createProperty(config, plot, evaluation) {
   const propertyId = getNextPropertyId();
   const sameTypeCount = state.properties.filter((item) => item.type === config.type).length + 1;
 
@@ -473,6 +574,10 @@ function createProperty(config) {
     baseCost: config.baseCost,
     baseIncome: config.baseIncome,
     baseExpense: config.baseExpense,
+    plotId: getCityPlotId(plot),
+    locationName: plot.name,
+    locationDemandAtBuild: evaluation.demandScore,
+    locationIncomeAtBuild: evaluation.incomeMultiplier,
     level: 1,
     status: "active",
     createdAtQuarter: state.quarter,
@@ -667,17 +772,25 @@ function applyRandomEvent() {
 
 function updateMarketState() {
   const activeProperties = getActiveProperties();
+  const portfolioLocationScore = getPortfolioLocationScore(activeProperties);
   const demandShift = Math.round(
     randomBetween(-2, 2) +
     (state.reputation - 50) / 22 -
     (state.interestRate - 10) / 4 +
-    Math.min(activeProperties.length, 4) * 0.5
+    Math.min(activeProperties.length, 4) * 0.5 +
+    (portfolioLocationScore - 60) / 20
   );
   const interestShift = randomBetween(-1, 1);
   let reputationShift = 0;
 
   if (activeProperties.length >= 3) {
     reputationShift += 1;
+  }
+  if (activeProperties.length >= 2 && portfolioLocationScore >= 72) {
+    reputationShift += 1;
+  }
+  if (activeProperties.length && portfolioLocationScore < 48) {
+    reputationShift -= 1;
   }
   if (state.loan.active && state.money < 200000) {
     reputationShift -= 1;
@@ -722,14 +835,17 @@ function evaluateOutcome(processedQuarter) {
 
 function calculateIncome(property) {
   const levelMultiplier = 1 + (property.level - 1) * 0.15;
+  const locationMultiplier = getPropertyLocationEvaluation(property).incomeMultiplier;
   return property.baseIncome *
     (0.5 + state.demand / 200) *
     (0.7 + state.reputation / 200) *
-    levelMultiplier;
+    levelMultiplier *
+    locationMultiplier;
 }
 
 function calculateExpense(property) {
-  return property.baseExpense * (1 + state.interestRate / 1000);
+  const locationMultiplier = getPropertyLocationEvaluation(property).expenseMultiplier;
+  return property.baseExpense * (1 + state.interestRate / 1000) * locationMultiplier;
 }
 
 function calculateNetIncome(property) {
@@ -739,13 +855,14 @@ function calculateNetIncome(property) {
 function calculateSalePrice(property) {
   const demandMultiplier = 0.72 + state.demand / 250;
   const levelMultiplier = 1 + (property.level - 1) * 0.08;
+  const locationMultiplier = getPropertyLocationEvaluation(property).saleMultiplier;
   const holdingQuarters = Math.max(0, state.quarter - property.createdAtQuarter);
   const holdingMultiplier = holdingQuarters >= FULL_PRICE_HOLDING_QUARTERS
     ? 1
     : 1 - EARLY_SALE_DISCOUNT_RATE;
   const transactionMultiplier = 1 - SALE_TRANSACTION_FEE_RATE;
 
-  return property.baseCost * demandMultiplier * levelMultiplier * holdingMultiplier * transactionMultiplier;
+  return property.baseCost * demandMultiplier * levelMultiplier * locationMultiplier * holdingMultiplier * transactionMultiplier;
 }
 
 function findActiveProperty(propertyId) {
@@ -859,6 +976,9 @@ function renderActionControls() {
   elements.buildHousingButton.disabled = gameLocked;
   elements.buildOfficeButton.disabled = gameLocked;
   elements.buildRetailButton.disabled = gameLocked;
+  elements.buildHousingButton.classList.toggle("is-selected", pendingBuildType === "housing");
+  elements.buildOfficeButton.classList.toggle("is-selected", pendingBuildType === "office");
+  elements.buildRetailButton.classList.toggle("is-selected", pendingBuildType === "retail");
   elements.loanButton.disabled = gameLocked || state.loan.active;
   elements.skipTurnButton.disabled = gameLocked;
   elements.upgradeButton.disabled = gameLocked || activeProperties.length === 0;
@@ -997,9 +1117,9 @@ function performRecommendedAction() {
   }
 
   const handlers = {
-    "build-housing": () => buildProperty("housing"),
-    "build-office": () => buildProperty("office"),
-    "build-retail": () => buildProperty("retail"),
+    "build-housing": () => beginBuildingPlacement("housing", { suggestedPlotId: getBestPlotForType("housing")?.plotId }),
+    "build-office": () => beginBuildingPlacement("office", { suggestedPlotId: getBestPlotForType("office")?.plotId }),
+    "build-retail": () => beginBuildingPlacement("retail", { suggestedPlotId: getBestPlotForType("retail")?.plotId }),
     "upgrade": () => upgradeProperty(advice.targetPropertyId),
     "sell": () => sellProperty(advice.targetPropertyId),
     "loan": takeLoan,
@@ -1009,6 +1129,11 @@ function performRecommendedAction() {
 
   if (!handler) {
     showToast("Для этого совета нет обработчика действия.", "danger");
+    return;
+  }
+
+  if (advice.actionKey.startsWith("build-")) {
+    handler();
     return;
   }
 
@@ -1465,22 +1590,31 @@ function getBestBuildOption(activeProperties) {
   const options = Object.values(PROPERTY_TYPES)
     .filter((config) => state.money >= config.baseCost)
     .map((config) => {
-      const projectedNetIncome = Math.round(calculateProjectedNetIncome(config, 1));
+      const bestPlot = getBestPlotForType(config.key);
+      if (!bestPlot) {
+        return null;
+      }
+
+      const projectedNetIncome = Math.round(calculateProjectedNetIncome(config, 1, bestPlot.evaluation));
       const demandBonus = state.demand >= 70 && config.key === "office" ? 14 : 0;
       const lowRiskBonus = state.demand < 45 && config.key === "housing" ? 10 : 0;
       const diversificationBonus = existingTypes.has(config.key) ? 0 : 18;
-      const score = (projectedNetIncome / config.baseCost) * 100 + demandBonus + lowRiskBonus + diversificationBonus;
+      const locationBonus = (bestPlot.evaluation.demandScore - 55) * 0.45;
+      const score = (projectedNetIncome / config.baseCost) * 100 + demandBonus + lowRiskBonus + diversificationBonus + locationBonus;
 
       return {
         key: config.key,
         actionKey: `build-${config.key}`,
-        title: `Построить ${config.type.toLowerCase()}`,
-        buttonLabel: `построить ${config.type.toLowerCase()}`,
+        title: `Построить ${config.type.toLowerCase()} в районе «${bestPlot.plot.name}»`,
+        buttonLabel: `выбрать участок для ${config.type.toLowerCase()}`,
         cost: config.baseCost,
         projectedNetIncome,
+        plotId: bestPlot.plotId,
+        plotName: bestPlot.plot.name,
         score
       };
     })
+    .filter(Boolean)
     .sort((left, right) => right.score - left.score);
 
   return options[0] || null;
@@ -1489,16 +1623,25 @@ function getBestBuildOption(activeProperties) {
 function getBuildAlternatives(bestBuild) {
   return Object.values(PROPERTY_TYPES)
     .filter((config) => config.key !== bestBuild.key && state.money >= config.baseCost)
-    .map((config) => `Построить ${config.type.toLowerCase()}, если хотите другой профиль риска`);
+    .map((config) => {
+      const bestPlot = getBestPlotForType(config.key);
+      return bestPlot
+        ? `Построить ${config.type.toLowerCase()} в районе «${bestPlot.plot.name}», если хотите другой профиль риска`
+        : null;
+    })
+    .filter(Boolean);
 }
 
-function calculateProjectedNetIncome(config, level) {
+function calculateProjectedNetIncome(config, level, plotEvaluation = null) {
   const levelMultiplier = 1 + (level - 1) * 0.15;
+  const incomeMultiplier = plotEvaluation ? plotEvaluation.incomeMultiplier : 1;
+  const expenseMultiplier = plotEvaluation ? plotEvaluation.expenseMultiplier : 1;
   const income = config.baseIncome *
     (0.5 + state.demand / 200) *
     (0.7 + state.reputation / 200) *
-    levelMultiplier;
-  const expense = config.baseExpense * (1 + state.interestRate / 1000);
+    levelMultiplier *
+    incomeMultiplier;
+  const expense = config.baseExpense * (1 + state.interestRate / 1000) * expenseMultiplier;
 
   return income - expense;
 }
@@ -1693,15 +1836,15 @@ function renderCityScene() {
 
   const scene = getEventScene(state.lastEvent);
   const orderedProperties = [...state.properties].sort((left, right) => left.id - right.id);
-  const visibleProperties = orderedProperties.slice(0, CITY_PLOTS.length);
-  const hiddenPropertiesCount = Math.max(orderedProperties.length - CITY_PLOTS.length, 0);
+  const propertiesByPlotId = new Map(orderedProperties.filter((property) => property.plotId).map((property) => [property.plotId, property]));
+  const hiddenPropertiesCount = Math.max(orderedProperties.length - propertiesByPlotId.size, 0);
 
-  elements.cityMap.className = `city-map city-map--canvas ${scene.className}`;
+  elements.cityMap.className = `city-map city-map--canvas ${scene.className} ${pendingBuildType ? "city-map--placing" : ""}`;
   ensureCityCanvas();
   citySceneCache = {
     scene,
     orderedProperties,
-    visibleProperties,
+    propertiesByPlotId,
     hiddenPropertiesCount
   };
 
@@ -1729,6 +1872,7 @@ function ensureCityCanvas() {
   elements.cityTooltip = document.getElementById("city-tooltip");
   elements.cityCanvas.addEventListener("mousemove", handleCityPointerMove);
   elements.cityCanvas.addEventListener("mouseleave", hideCityTooltip);
+  elements.cityCanvas.addEventListener("click", handleCityCanvasClick);
 }
 
 function renderCityHud(scene, totalProperties, hiddenPropertiesCount) {
@@ -1737,6 +1881,21 @@ function renderCityHud(scene, totalProperties, hiddenPropertiesCount) {
   }
 
   const activeCount = getActiveProperties().length;
+  if (pendingBuildType) {
+    const config = PROPERTY_TYPES[pendingBuildType];
+    const suggestedPlot = getCityPlotById(citySuggestedPlotId);
+    elements.cityHud.innerHTML = `
+      <div class="city-hud__placement">
+        <span>Режим размещения</span>
+        <strong>Выберите участок для объекта «${escapeHtml(config.type)}»</strong>
+        <p>На свободных участках показаны поток района и бонус дохода для выбранного типа здания. ${suggestedPlot ? `Советчик выделил район «${escapeHtml(suggestedPlot.name)}».` : ""}</p>
+        <button class="button button--secondary button--small" type="button" data-cancel-placement>Отменить выбор</button>
+      </div>
+    `;
+    elements.cityHud.querySelector("[data-cancel-placement]").addEventListener("click", () => cancelBuildingPlacement());
+    return;
+  }
+
   const note = totalProperties === 0
     ? "Постройте первый объект, чтобы район начал расти."
     : hiddenPropertiesCount > 0
@@ -1850,8 +2009,6 @@ function drawCityBackground(ctx, metrics) {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, metrics.width, metrics.height);
 
-  drawDistantSkyline(ctx, metrics);
-
   const cityPlate = [
     projectCityPoint(metrics, -0.6, -0.65),
     projectCityPoint(metrics, CITY_GRID.columns + 0.65, -0.65),
@@ -1867,30 +2024,6 @@ function drawCityBackground(ctx, metrics) {
   ctx.restore();
 
   strokePolygon(ctx, cityPlate, "rgba(255, 255, 255, 0.58)", 2);
-}
-
-function drawDistantSkyline(ctx, metrics) {
-  const baseY = Math.max(46, metrics.originY - metrics.tileW * 0.24);
-  const skyline = [
-    { x: 0.08, w: 0.035, h: 0.11 },
-    { x: 0.13, w: 0.052, h: 0.18 },
-    { x: 0.21, w: 0.044, h: 0.14 },
-    { x: 0.74, w: 0.04, h: 0.16 },
-    { x: 0.81, w: 0.058, h: 0.22 },
-    { x: 0.9, w: 0.038, h: 0.13 }
-  ];
-
-  ctx.save();
-  skyline.forEach((tower) => {
-    const x = metrics.width * tower.x;
-    const w = metrics.width * tower.w;
-    const h = metrics.height * tower.h;
-    const gradient = ctx.createLinearGradient(x, baseY - h, x, baseY);
-    gradient.addColorStop(0, "rgba(70, 104, 101, 0.22)");
-    gradient.addColorStop(1, "rgba(70, 104, 101, 0.06)");
-    drawRoundedRect(ctx, x, baseY - h, w, h, 8, gradient, "rgba(255, 255, 255, 0.12)");
-  });
-  ctx.restore();
 }
 
 function drawSceneColorGrade(ctx, metrics) {
@@ -1935,7 +2068,7 @@ function drawCityTiles(ctx, metrics) {
         cityHitAreas.push({
           polygon: points,
           plot,
-          property: citySceneCache.visibleProperties[CITY_PLOTS.indexOf(plot)]
+          property: citySceneCache.propertiesByPlotId.get(getCityPlotId(plot)) || null
         });
       } else {
         drawPlotTile(ctx, points, "empty");
@@ -1954,18 +2087,12 @@ function drawRoadTile(ctx, metrics, x, y, points) {
   const hasEast = isRoadTile(x + 1, y);
   const hasNorth = isRoadTile(x, y - 1);
   const hasSouth = isRoadTile(x, y + 1);
-  const hasDiagonal = isRoadTile(x - 1, y - 1) || isRoadTile(x + 1, y + 1);
-
   if (hasWest || hasEast) {
     drawRoadLane(ctx, metrics, projectCityPoint(metrics, x + 0.16, y + 0.5), projectCityPoint(metrics, x + 0.84, y + 0.5));
   }
 
   if (hasNorth || hasSouth) {
     drawRoadLane(ctx, metrics, projectCityPoint(metrics, x + 0.5, y + 0.16), projectCityPoint(metrics, x + 0.5, y + 0.84));
-  }
-
-  if (hasDiagonal && !hasWest && !hasEast && !hasNorth && !hasSouth) {
-    drawRoadLane(ctx, metrics, projectCityPoint(metrics, x + 0.18, y + 0.18), projectCityPoint(metrics, x + 0.82, y + 0.82));
   }
 
 }
@@ -2030,10 +2157,10 @@ function drawPlotTile(ctx, points, zone) {
 }
 
 function drawCityItems(ctx, metrics, timestamp) {
-  const items = CITY_PLOTS.map((plot, index) => ({
+  const items = CITY_PLOTS.map((plot) => ({
     type: "plot",
     plot,
-    property: citySceneCache.visibleProperties[index],
+    property: citySceneCache.propertiesByPlotId.get(getCityPlotId(plot)) || null,
     depth: plot.x + plot.y + 0.95
   }));
 
@@ -2065,7 +2192,12 @@ function drawCityItems(ctx, metrics, timestamp) {
 function drawPlotContent(ctx, metrics, plot, property, timestamp) {
   if (!property) {
     drawZoneDetails(ctx, metrics, plot);
-    drawEmptyFoundation(ctx, metrics, plot);
+    if (isBuildableCityPlot(plot)) {
+      drawEmptyFoundation(ctx, metrics, plot);
+      drawPlacementOption(ctx, metrics, plot);
+    } else {
+      drawPublicSpaceLabel(ctx, metrics, plot);
+    }
     return;
   }
 
@@ -2131,6 +2263,56 @@ function drawEmptyFoundation(ctx, metrics, plot) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("УЧАСТОК", labelPoint.x, labelPoint.y);
+  ctx.restore();
+}
+
+function drawPlacementOption(ctx, metrics, plot) {
+  if (!pendingBuildType) {
+    return;
+  }
+
+  const plotId = getCityPlotId(plot);
+  const evaluation = getPlotEvaluation(plot, pendingBuildType);
+  const isHovered = cityHoveredPlotId === plotId;
+  const isSuggested = citySuggestedPlotId === plotId;
+  const tile = getTilePoints(metrics, plot.x, plot.y, 5);
+  const center = projectCityPoint(metrics, plot.x + 0.5, plot.y + 0.5, 16);
+
+  ctx.save();
+  ctx.globalAlpha = isHovered ? 0.72 : isSuggested ? 0.58 : 0.34;
+  fillPolygon(ctx, tile, isHovered ? "rgba(255, 220, 113, 0.72)" : isSuggested ? "rgba(105, 205, 139, 0.64)" : "rgba(255, 255, 255, 0.54)");
+  strokePolygon(ctx, tile, isHovered ? "#f2b84b" : isSuggested ? "#2b8b57" : "rgba(23, 107, 82, 0.62)", isHovered || isSuggested ? 3 : 1.8);
+  ctx.restore();
+
+  const bonusText = formatSignedPercent(evaluation.incomeMultiplier - 1);
+  const width = Math.max(78, metrics.tileW * 0.72);
+  drawRoundedRect(ctx, center.x - width / 2, center.y - 16, width, 31, 9, isHovered ? "rgba(31, 67, 54, 0.95)" : "rgba(31, 67, 54, 0.84)", "rgba(255, 255, 255, 0.48)");
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `900 ${Math.max(8, metrics.tileW * 0.072)}px Trebuchet MS, sans-serif`;
+  ctx.fillText(`ПОТОК ${evaluation.demandScore}`, center.x, center.y - 6);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+  ctx.font = `800 ${Math.max(7, metrics.tileW * 0.061)}px Trebuchet MS, sans-serif`;
+  ctx.fillText(`ДОХОД ${bonusText}`, center.x, center.y + 7);
+  ctx.restore();
+}
+
+function drawPublicSpaceLabel(ctx, metrics, plot) {
+  const point = projectCityPoint(metrics, plot.x + 0.5, plot.y + 0.54, 8);
+  const label = plot.zone === "park" ? "ПАРК" : "ПРОМЕНАД";
+  const fill = plot.zone === "park" ? "rgba(54, 111, 65, 0.74)" : "rgba(57, 101, 90, 0.72)";
+
+  ctx.save();
+  ctx.font = `900 ${Math.max(8, metrics.tileW * 0.07)}px Trebuchet MS, sans-serif`;
+  const width = ctx.measureText(label).width + 14;
+  drawRoundedRect(ctx, point.x - width / 2, point.y - 10, width, 20, 8, fill, "rgba(255, 255, 255, 0.34)");
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, point.x, point.y);
   ctx.restore();
 }
 
@@ -2517,6 +2699,260 @@ function getCityPlotAt(x, y) {
   return CITY_PLOTS.find((plot) => plot.x === x && plot.y === y);
 }
 
+function getCityPlotId(plot) {
+  return `${plot.x}:${plot.y}`;
+}
+
+function getCityPlotById(plotId) {
+  return CITY_PLOTS.find((plot) => getCityPlotId(plot) === plotId) || null;
+}
+
+function isBuildableCityPlot(plot) {
+  return Boolean(plot) && !CITY_PUBLIC_ZONES.has(plot.zone);
+}
+
+function getPropertyAtPlot(plotId) {
+  return state.properties.find((property) => property.plotId === plotId) || null;
+}
+
+function getAvailableBuildPlots() {
+  return CITY_PLOTS.filter((plot) => isBuildableCityPlot(plot) && !getPropertyAtPlot(getCityPlotId(plot)));
+}
+
+function migratePropertyPlots(properties) {
+  const assignedPlotIds = new Set();
+  const fallbackPlots = [
+    ...CITY_PLOTS.filter(isBuildableCityPlot),
+    ...CITY_PLOTS.filter((plot) => !isBuildableCityPlot(plot))
+  ];
+
+  properties.forEach((property) => {
+    const existingPlot = getCityPlotById(property.plotId);
+    if (existingPlot && !assignedPlotIds.has(property.plotId)) {
+      assignedPlotIds.add(property.plotId);
+      property.locationName = property.locationName || existingPlot.name;
+      return;
+    }
+
+    const fallbackPlot = fallbackPlots.find((plot) => !assignedPlotIds.has(getCityPlotId(plot)));
+    if (!fallbackPlot) {
+      property.plotId = null;
+      return;
+    }
+
+    property.plotId = getCityPlotId(fallbackPlot);
+    property.locationName = fallbackPlot.name;
+    assignedPlotIds.add(property.plotId);
+  });
+}
+
+function getNearbyCityPlots(plot, maxDistance = 2) {
+  return CITY_PLOTS
+    .map((candidate) => ({
+      plot: candidate,
+      distance: Math.abs(candidate.x - plot.x) + Math.abs(candidate.y - plot.y)
+    }))
+    .filter((item) => item.distance > 0 && item.distance <= maxDistance);
+}
+
+function getPlotEvaluation(plotOrId, typeKey, excludedPropertyId = null) {
+  const plot = typeof plotOrId === "string" ? getCityPlotById(plotOrId) : plotOrId;
+  if (!plot || !typeKey) {
+    return getNeutralPlotEvaluation();
+  }
+
+  const profile = CITY_ZONE_PROFILES[plot.zone] || CITY_ZONE_PROFILES.residential;
+  const propertyTypeLabel = { housing: "жилья", office: "офиса", retail: "ритейла" }[typeKey];
+  let demandScore = profile.baseDemand;
+  const zoneIncomeBonus = profile.incomeBonus[typeKey] || 0;
+  let incomeBonus = zoneIncomeBonus;
+  let expenseBonus = profile.expenseBonus || 0;
+  let reputationEffect = profile.reputationEffect || 0;
+  const reasons = [`${profile.label}: для ${propertyTypeLabel} доход ${formatSignedPercent(zoneIncomeBonus)}.`];
+  const nearbyPlots = getNearbyCityPlots(plot);
+  const adjacentRoads = [
+    [plot.x - 1, plot.y],
+    [plot.x + 1, plot.y],
+    [plot.x, plot.y - 1],
+    [plot.x, plot.y + 1]
+  ].filter(([x, y]) => CITY_ROAD_KEYS.has(`${x}:${y}`)).length;
+
+  if (adjacentRoads) {
+    const roadDemandBonus = Math.min(adjacentRoads, 3) * 2;
+    const roadIncomeBonus = Math.min(adjacentRoads, 2) * 0.01;
+    demandScore += roadDemandBonus;
+    incomeBonus += roadIncomeBonus;
+    reasons.push(`Дороги: ${adjacentRoads} примык., поток +${roadDemandBonus}, доход ${formatSignedPercent(roadIncomeBonus)}.`);
+  } else {
+    incomeBonus -= 0.05;
+    reasons.push("Нет прямого доступа к дороге: доход -5%.");
+  }
+
+  let parkCount = 0;
+  let parkDemandBonus = 0;
+  let parkIncomeBonus = 0;
+  let parkReputationBonus = 0;
+  let promenadeCount = 0;
+  let promenadeDemandBonus = 0;
+  let promenadeIncomeBonus = 0;
+  let promenadeReputationBonus = 0;
+
+  nearbyPlots.forEach(({ plot: nearbyPlot, distance }) => {
+    if (nearbyPlot.zone === "park") {
+      parkCount += 1;
+      parkDemandBonus += distance === 1 ? 7 : 4;
+      parkReputationBonus += distance === 1 ? 2 : 1;
+      parkIncomeBonus += getPublicSpaceIncomeBonus("park", typeKey, distance);
+    }
+
+    if (nearbyPlot.zone === "waterfront") {
+      promenadeCount += 1;
+      promenadeDemandBonus += distance === 1 ? 4 : 2;
+      promenadeReputationBonus += distance === 1 ? 1 : 0;
+      promenadeIncomeBonus += getPublicSpaceIncomeBonus("waterfront", typeKey, distance);
+    }
+  });
+
+  demandScore += parkDemandBonus + promenadeDemandBonus;
+  reputationEffect += parkReputationBonus + promenadeReputationBonus;
+  incomeBonus += parkIncomeBonus + promenadeIncomeBonus;
+
+  if (parkCount) {
+    reasons.push(`Парки рядом: ${parkCount}, поток +${parkDemandBonus}, доход ${formatSignedPercent(parkIncomeBonus)}, репутация +${parkReputationBonus}.`);
+  }
+  if (promenadeCount) {
+    reasons.push(`Променады рядом: ${promenadeCount}, поток +${promenadeDemandBonus}, доход ${formatSignedPercent(promenadeIncomeBonus)}, репутация +${promenadeReputationBonus}.`);
+  }
+
+  const nearbyActiveProperties = getActiveProperties()
+    .filter((property) => property.id !== excludedPropertyId)
+    .map((property) => ({
+      property,
+      plot: getCityPlotById(property.plotId)
+    }))
+    .filter((item) => item.plot)
+    .map((item) => ({
+      ...item,
+      distance: Math.abs(item.plot.x - plot.x) + Math.abs(item.plot.y - plot.y)
+    }))
+    .filter((item) => item.distance > 0 && item.distance <= 2);
+
+  nearbyActiveProperties.forEach(({ property, distance }) => {
+    const nearbyType = getPropertyTypeKey(property);
+    demandScore += distance === 1 ? 2 : 1;
+
+    if (nearbyType === "housing") {
+      incomeBonus += typeKey === "retail" ? 0.035 : typeKey === "housing" ? 0.012 : 0;
+    }
+    if (nearbyType === "office") {
+      incomeBonus += typeKey === "office" ? 0.025 : typeKey === "retail" ? 0.02 : typeKey === "housing" ? -0.01 : 0;
+    }
+    if (nearbyType === "retail") {
+      incomeBonus += typeKey === "office" ? 0.01 : typeKey === "housing" ? -0.01 : -0.005;
+    }
+  });
+
+  if (nearbyActiveProperties.length) {
+    reasons.push(`Соседние объекты: ${nearbyActiveProperties.length}, их аудитория влияет на поток и доход.`);
+  }
+
+  const sameTypeNeighbors = nearbyActiveProperties.filter((item) => getPropertyTypeKey(item.property) === typeKey).length;
+  if (sameTypeNeighbors > 2) {
+    const overDensity = sameTypeNeighbors - 2;
+    demandScore -= overDensity * 2;
+    incomeBonus -= overDensity * 0.025;
+    expenseBonus += overDensity * 0.01;
+    reputationEffect -= overDensity;
+    reasons.push("Плотная однотипная застройка: растёт конкуренция.");
+  }
+
+  const demand = clamp(Math.round(demandScore), 30, 96);
+  const incomeMultiplier = clampDecimal(1 + incomeBonus, 0.78, 1.38);
+  const expenseMultiplier = clampDecimal(1 + expenseBonus, 0.94, 1.16);
+  const saleMultiplier = clampDecimal(0.9 + (demand - 50) / 250, 0.84, 1.15);
+  const localReputationEffect = clamp(Math.round(reputationEffect), -2, 4);
+  const demandEffect = clamp(Math.round((demand - 58) / 12), -2, 3);
+  const rating = clamp(Math.round(demand + (incomeMultiplier - 1) * 65 + localReputationEffect * 2), 0, 100);
+
+  return {
+    plotId: getCityPlotId(plot),
+    plotName: plot.name,
+    zone: plot.zone,
+    zoneLabel: profile.label,
+    demandScore: demand,
+    rating,
+    incomeMultiplier,
+    expenseMultiplier,
+    saleMultiplier,
+    reputationEffect: localReputationEffect,
+    demandEffect,
+    reasons: [...new Set(reasons)].slice(0, 6)
+  };
+}
+
+function getPublicSpaceIncomeBonus(zone, typeKey, distance) {
+  const distanceMultiplier = distance === 1 ? 1 : 0.5;
+
+  if (zone === "park") {
+    const parkBonus = typeKey === "housing" ? 0.05 : typeKey === "retail" ? 0.02 : 0.01;
+    return parkBonus * distanceMultiplier;
+  }
+
+  const promenadeBonus = typeKey === "housing" ? 0.035 : 0.015;
+  return promenadeBonus * distanceMultiplier;
+}
+
+function getNeutralPlotEvaluation() {
+  return {
+    plotId: null,
+    plotName: "Участок не задан",
+    zone: "unknown",
+    zoneLabel: "Без района",
+    demandScore: 50,
+    rating: 50,
+    incomeMultiplier: 1,
+    expenseMultiplier: 1,
+    saleMultiplier: 1,
+    reputationEffect: 0,
+    demandEffect: 0,
+    reasons: ["Для объекта не задан участок."]
+  };
+}
+
+function getPropertyLocationEvaluation(property) {
+  return property.plotId
+    ? getPlotEvaluation(property.plotId, getPropertyTypeKey(property), property.id)
+    : getNeutralPlotEvaluation();
+}
+
+function getBestPlotForType(typeKey) {
+  const config = PROPERTY_TYPES[typeKey];
+  if (!config) {
+    return null;
+  }
+
+  return getAvailableBuildPlots()
+    .map((plot) => {
+      const evaluation = getPlotEvaluation(plot, typeKey);
+      return {
+        plot,
+        plotId: getCityPlotId(plot),
+        evaluation,
+        projectedNetIncome: calculateProjectedNetIncome(config, 1, evaluation)
+      };
+    })
+    .sort((left, right) => right.projectedNetIncome - left.projectedNetIncome || right.evaluation.rating - left.evaluation.rating)[0] || null;
+}
+
+function getPortfolioLocationScore(activeProperties = getActiveProperties()) {
+  if (!activeProperties.length) {
+    return 60;
+  }
+
+  const total = activeProperties.reduce((sum, property) => sum + getPropertyLocationEvaluation(property).rating, 0);
+  return total / activeProperties.length;
+}
+
 function isRoadTile(x, y) {
   return CITY_ROAD_KEYS.has(`${x}:${y}`);
 }
@@ -2564,20 +3000,99 @@ function handleCityPointerMove(event) {
   if (!hit) {
     hideCityTooltip();
     elements.cityCanvas.style.cursor = "default";
+    cityHoveredPlotId = null;
     return;
   }
 
-  elements.cityCanvas.style.cursor = "pointer";
-  const propertyText = hit.property
-    ? `${hit.property.name}, уровень ${hit.property.level}, статус: ${hit.property.status === "active" ? "активен" : "продан"}`
-    : "Свободный участок для будущей застройки";
+  const plotId = getCityPlotId(hit.plot);
+  cityHoveredPlotId = plotId;
+  const canPlaceBuilding = pendingBuildType && !hit.property && isBuildableCityPlot(hit.plot);
+  elements.cityCanvas.style.cursor = canPlaceBuilding ? "crosshair" : "pointer";
+  const tooltipContent = getCityTooltipContent(hit);
 
+  elements.cityTooltip.innerHTML = tooltipContent;
   elements.cityTooltip.hidden = false;
-  elements.cityTooltip.style.left = `${Math.min(point.x + 18, rect.width - 240)}px`;
-  elements.cityTooltip.style.top = `${Math.max(12, point.y - 20)}px`;
-  elements.cityTooltip.innerHTML = `
+
+  const tooltipWidth = elements.cityTooltip.offsetWidth || 280;
+  const tooltipHeight = elements.cityTooltip.offsetHeight || 180;
+  elements.cityTooltip.style.left = `${Math.max(12, Math.min(point.x + 18, rect.width - tooltipWidth - 12))}px`;
+  elements.cityTooltip.style.top = `${Math.max(12, Math.min(point.y - 20, rect.height - tooltipHeight - 12))}px`;
+}
+
+function handleCityCanvasClick(event) {
+  if (!pendingBuildType) {
+    return;
+  }
+
+  const rect = elements.cityCanvas.getBoundingClientRect();
+  const point = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+  const hit = [...cityHitAreas].reverse().find((area) => pointInPolygon(point, area.polygon));
+  if (!hit) {
+    return;
+  }
+
+  if (!isBuildableCityPlot(hit.plot)) {
+    showToast("Это общественная зона. Она повышает привлекательность соседних участков, но застраивать её нельзя.", "warning");
+    return;
+  }
+
+  if (hit.property) {
+    showToast("Участок уже занят. Выберите свободную площадку.", "warning");
+    return;
+  }
+
+  const typeKey = pendingBuildType;
+  const plotId = getCityPlotId(hit.plot);
+  cityHoveredPlotId = null;
+  performAction(() => buildProperty(typeKey, plotId));
+}
+
+function getCityTooltipContent(hit) {
+  const plotId = getCityPlotId(hit.plot);
+  const profile = CITY_ZONE_PROFILES[hit.plot.zone] || CITY_ZONE_PROFILES.residential;
+
+  if (hit.property) {
+    const evaluation = getPropertyLocationEvaluation(hit.property);
+    return `
+      <strong>${escapeHtml(hit.property.name)}</strong>
+      <span>${escapeHtml(hit.plot.name)} • ${escapeHtml(profile.label)}</span>
+      <div class="city-tooltip__metrics">
+        <b>Поток района ${evaluation.demandScore}/100</b>
+        <b>Доход ${escapeHtml(formatSignedPercent(evaluation.incomeMultiplier - 1))}</b>
+      </div>
+      <small>Уровень ${hit.property.level} • ${hit.property.status === "active" ? "активен" : "продан"}</small>
+    `;
+  }
+
+  if (!isBuildableCityPlot(hit.plot)) {
+    return `
+      <strong>${escapeHtml(hit.plot.name)}</strong>
+      <span>${escapeHtml(profile.label)}. Общественная зона: строить здесь нельзя, но она повышает привлекательность участков рядом.</span>
+    `;
+  }
+
+  if (!pendingBuildType) {
+    return `
+      <strong>${escapeHtml(hit.plot.name)}</strong>
+      <span>${escapeHtml(profile.label)}. Свободный участок для будущей застройки.</span>
+    `;
+  }
+
+  const evaluation = getPlotEvaluation(hit.plot, pendingBuildType);
+  return `
     <strong>${escapeHtml(hit.plot.name)}</strong>
-    <span>${escapeHtml(propertyText)}</span>
+    <span>${escapeHtml(evaluation.zoneLabel)} • рейтинг ${evaluation.rating}/100</span>
+    <div class="city-tooltip__metrics">
+      <b>Поток ${evaluation.demandScore}/100</b>
+      <b>Доход ${escapeHtml(formatSignedPercent(evaluation.incomeMultiplier - 1))}</b>
+      <b>Репутация ${escapeHtml(formatSignedNumber(evaluation.reputationEffect))}</b>
+      <b>Рынок ${escapeHtml(formatSignedNumber(evaluation.demandEffect))}</b>
+    </div>
+    <small>${evaluation.reasons.map(escapeHtml).join(" ")}</small>
+    <em>Нажмите, чтобы построить здесь.</em>
   `;
 }
 
@@ -2585,6 +3100,7 @@ function hideCityTooltip() {
   if (elements.cityTooltip) {
     elements.cityTooltip.hidden = true;
   }
+  cityHoveredPlotId = null;
 }
 
 function pointInPolygon(point, polygon) {
@@ -2710,6 +3226,7 @@ function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyl
 function renderCityMarketBoard() {
   const activeProperties = getActiveProperties();
   const portfolioLoad = clamp(Math.round((activeProperties.length / CITY_PLOTS.length) * 100), 0, 100);
+  const locationScore = Math.round(getPortfolioLocationScore(activeProperties));
   const creditPressure = state.loan.active ? clamp(Math.round((state.loan.remainingPayments / LOAN_TERM) * 100), 0, 100) : 0;
   const rateComfort = clamp(Math.round(((25 - state.interestRate) / 24) * 100), 0, 100);
 
@@ -2718,6 +3235,7 @@ function renderCityMarketBoard() {
     ${renderMeter("Спрос", state.demand, `${state.demand}/100`)}
     ${renderMeter("Репутация", state.reputation, `${state.reputation}/100`)}
     ${renderMeter("Комфорт ставки", rateComfort, `${state.interestRate}%`)}
+    ${renderMeter("Качество локаций", locationScore, `${locationScore}/100`)}
     ${renderMeter("Загрузка карты", portfolioLoad, `${activeProperties.length}/${CITY_PLOTS.length}`)}
     ${state.loan.active ? renderMeter("Кредитное давление", creditPressure, `${state.loan.remainingPayments} плат.`) : ""}
   `;
@@ -2871,6 +3389,7 @@ function renderProperties() {
 
   elements.propertiesGrid.innerHTML = sortedProperties.map((property) => {
     const isActive = property.status === "active";
+    const location = getPropertyLocationEvaluation(property);
     const income = isActive ? Math.round(calculateIncome(property)) : 0;
     const expense = isActive ? Math.round(calculateExpense(property)) : 0;
     const netIncome = isActive ? income - expense : 0;
@@ -2901,6 +3420,10 @@ function renderProperties() {
             <span>${isActive ? "Цена продажи" : "Статус"}</span>
             <strong>${isActive ? formatMoney(salePrice) : "Закрыт"}</strong>
           </div>
+          <div class="property-mini-stat">
+            <span>Локация</span>
+            <strong>${location.demandScore}/100</strong>
+          </div>
         </div>
 
         <details class="property-details">
@@ -2927,6 +3450,18 @@ function renderProperties() {
               <span class="property-stat__value">${isActive ? formatMoney(expense) : "—"}</span>
             </div>
             <div class="property-stat">
+              <span class="property-stat__label">Район</span>
+              <span class="property-stat__value">${escapeHtml(location.plotName)}</span>
+            </div>
+            <div class="property-stat">
+              <span class="property-stat__label">Бонус дохода локации</span>
+              <span class="property-stat__value">${formatSignedPercent(location.incomeMultiplier - 1)}</span>
+            </div>
+            <div class="property-stat">
+              <span class="property-stat__label">Поток района</span>
+              <span class="property-stat__value">${location.demandScore}/100</span>
+            </div>
+            <div class="property-stat">
               <span class="property-stat__label">ID объекта</span>
               <span class="property-stat__value">${property.id}</span>
             </div>
@@ -2936,6 +3471,7 @@ function renderProperties() {
         <div class="property-card__footer">
           <div class="property-card__meta">
             <span>ID: ${property.id}</span>
+            <span>Район: ${escapeHtml(location.plotName)}</span>
             <span>Создан в квартале: ${property.createdAtQuarter}</span>
             ${property.soldAtQuarter ? `<span>Продан в квартале: ${property.soldAtQuarter}</span>` : ""}
           </div>
@@ -3358,6 +3894,10 @@ function clamp(value, min, max) {
   return Math.min(Math.max(Math.round(value), min), max);
 }
 
+function clampDecimal(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function randomBetween(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -3392,6 +3932,11 @@ function formatSignedNumber(value) {
   }
 
   return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function formatSignedPercent(value) {
+  const percent = Math.round(value * 100);
+  return `${percent > 0 ? "+" : ""}${percent}%`;
 }
 
 function escapeHtml(value) {
