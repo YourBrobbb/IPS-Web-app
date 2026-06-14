@@ -1,0 +1,259 @@
+/* Single-screen play mode and compact interaction panels. Source: style.css lines 761-1019. */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.is-playing .decision-panel,
+body.is-playing .city-panel {
+  min-height: 0;
+  overflow: hidden;
+  padding: 14px;
+  border-radius: 22px;
+}
+
+body.is-playing .decision-panel {
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  gap: 8px;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(23, 107, 82, 0.35) transparent;
+}
+
+body.is-playing .decision-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.is-playing .decision-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.is-playing .decision-panel::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  background: rgba(23, 107, 82, 0.36);
+}
+
+body.is-playing .decision-heading {
+  display: none;
+}
+
+body.is-playing .decision-heading h3 {
+  margin: 4px 0 0;
+  font-size: 1.02rem;
+}
+
+body.is-playing .decision-heading p {
+  font-size: 0.78rem;
+  line-height: 1.32;
+}
+
+body.is-playing .decision-heading > div > p:not(.topbar__eyebrow) {
+  display: none;
+}
+
+body.is-playing .next-action-card {
+  display: none;
+}
+
+body.is-playing .next-action-card strong {
+  font-size: 0.98rem;
+}
+
+body.is-playing .next-action-card p {
+  display: none;
+}
+
+body.is-playing .advisor-panel {
+  gap: 7px;
+  padding: 9px;
+  border-radius: 16px;
+}
+
+body.is-playing .advisor-panel__top {
+  gap: 6px;
+}
+
+body.is-playing .advisor-toggle {
+  font-size: 0.66rem;
+}
+
+body.is-playing .advisor-pill {
+  padding: 4px 7px;
+  font-size: 0.62rem;
+}
+
+body.is-playing .advisor-main-card {
+  gap: 5px;
+  padding: 10px;
+  border-radius: 14px;
+}
+
+body.is-playing .advisor-main-card h4 {
+  font-size: 0.92rem;
+}
+
+body.is-playing .advisor-main-card p,
+body.is-playing .advisor-event-note p,
+body.is-playing .advisor-check p,
+body.is-playing .advisor-warnings p,
+body.is-playing .advisor-alternatives span {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+body.is-playing .advisor-badge {
+  padding: 4px 7px;
+  font-size: 0.62rem;
+}
+
+body.is-playing .advisor-event-note,
+body.is-playing .advisor-warnings,
+body.is-playing .advisor-alternatives {
+  padding: 8px;
+  border-radius: 12px;
+}
+
+body.is-playing .advisor-event-note strong,
+body.is-playing .advisor-alternatives strong {
+  font-size: 0.68rem;
+}
+
+body.is-playing .advisor-checklist {
+  gap: 4px;
+}
+
+body.is-playing .advisor-check {
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px 7px;
+  border-radius: 10px;
+}
+
+body.is-playing .advisor-check span {
+  width: 16px;
+  height: 16px;
+  font-size: 0.58rem;
+}
+
+body.is-playing .action-group {
+  gap: 6px;
+  padding-top: 7px;
+  margin-top: 7px;
+}
+
+body.is-playing .action-group h4 {
+  font-size: 0.86rem;
+}
+
+body.is-playing .quick-action-grid {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+body.is-playing .action-card-button {
+  min-height: 38px;
+  padding: 7px 9px;
+  border-radius: 15px;
+}
+
+body.is-playing .action-card-button span,
+body.is-playing .action-card-button strong,
+body.is-playing .action-card-button small {
+  line-height: 1.1;
+}
+
+body.is-playing .action-card-button strong {
+  font-size: 0.92rem;
+}
+
+body.is-playing .action-card-button small {
+  font-size: 0.76rem;
+}
+
+body.is-playing .control-summary-grid {
+  gap: 6px;
+}
+
+body.is-playing .control-summary-card {
+  gap: 2px;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+body.is-playing .control-summary-card span,
+body.is-playing .control-summary-card small {
+  font-size: 0.66rem;
+}
+
+body.is-playing .control-summary-card strong {
+  font-size: 0.82rem;
+}
+
+body.is-playing select,
+body.is-playing .button {
+  min-height: 32px;
+  font-size: 0.82rem;
+}
+
+body.is-playing select {
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+body.is-playing .dual-action-grid,
+body.is-playing .game-management-row {
+  gap: 6px;
+}
+
+body.is-playing .loan-box {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 12px;
+}
+
+body.is-playing .loan-box strong,
+body.is-playing .loan-box p {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+body.is-playing .city-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+body.is-playing .city-panel__header {
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+body.is-playing .city-panel__header h3 {
+  margin: 4px 0 0;
+  font-size: 1.18rem;
+}
+
+body.is-playing .city-legend {
+  gap: 6px;
+}
+
+body.is-playing .legend-item {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+}
+
+body.is-playing .city-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 0;
+}
+
+body.is-playing .city-map.city-map--canvas {
+  height: 100%;
+  min-height: 0;
+  border-radius: 18px;
+}

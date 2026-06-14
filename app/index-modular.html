@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Симулятор рынка недвижимости — модульная версия</title>
+  <link rel="stylesheet" href="css/01-foundation-start.css">
+  <link rel="stylesheet" href="css/02-game-layout-controls.css">
+  <link rel="stylesheet" href="css/03-compact-play-mode.css">
+  <link rel="stylesheet" href="css/04-city-sidebar.css">
+  <link rel="stylesheet" href="css/05-portfolio-events-charts.css">
+  <link rel="stylesheet" href="css/06-responsive-map.css">
+</head>
+<body>
+  <div class="page-shell">
+    <section class="hero-screen" id="start-screen">
+      <div class="hero-screen__content">
+        <div class="hero-screen__intro">
+          <span class="eyebrow">Учебный проект по экономике</span>
+          <h1>Симулятор рынка недвижимости в упрощённой экономической системе</h1>
+          <p class="hero-screen__lead">
+            Управляйте капиталом, стройте объекты, следите за ставкой и спросом, развивайте репутацию
+            и доведите портфель до уверенной победы к 20 кварталу.
+          </p>
+          <div class="hero-screen__actions">
+            <button class="button button--primary" id="start-game-button">Начать новую игру</button>
+            <button class="button button--ghost" id="scroll-to-rules-button">Правила</button>
+          </div>
+          <div class="save-hint" id="save-hint"></div>
+        </div>
+
+        <div class="hero-screen__panel">
+          <div class="hero-stat">
+            <span class="hero-stat__label">Стартовый капитал</span>
+            <strong class="hero-stat__value">1 000 000</strong>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat__label">Цель</span>
+            <strong class="hero-stat__value">2 000 000+ и развитый портфель</strong>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat__label">Доступные действия</span>
+            <strong class="hero-stat__value">1 решение за квартал</strong>
+          </div>
+          <div class="hero-tags">
+            <span class="tag">Жильё</span>
+            <span class="tag">Офис</span>
+            <span class="tag">Ритейл</span>
+            <span class="tag">События рынка</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <main class="main-layout">
+      <section class="game-screen is-hidden" id="game-screen">
+        <header class="topbar panel">
+          <div class="topbar__title">
+            <div>
+              <p class="topbar__eyebrow">Игровой экран</p>
+              <h2>Симулятор рынка недвижимости</h2>
+            </div>
+            <div class="topbar__links">
+              <button class="button button--ghost button--small" id="show-rules-button">Правила</button>
+              <button class="button button--ghost button--small" id="show-about-button">О проекте</button>
+            </div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-card__label">Квартал</span>
+              <strong class="metric-card__value" id="metric-quarter">1</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Деньги</span>
+              <strong class="metric-card__value" id="metric-money">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Репутация</span>
+              <strong class="metric-card__value" id="metric-reputation">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Спрос</span>
+              <strong class="metric-card__value" id="metric-demand">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Ставка</span>
+              <strong class="metric-card__value" id="metric-interest">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-card__label">Прибыль</span>
+              <strong class="metric-card__value" id="metric-profit">0</strong>
+            </div>
+          </div>
+        </header>
+
+        <div class="game-board">
+          <aside class="panel decision-panel">
+            <div class="panel-heading decision-heading">
+              <div>
+                <p class="topbar__eyebrow">Следующий ход</p>
+                <h3>Центр решений</h3>
+                <p>Выберите одно действие. Карта справа сразу покажет результат.</p>
+              </div>
+              <div class="next-action-card" id="next-action-card"></div>
+            </div>
+
+            <div class="advisor-panel" id="advisor-panel" aria-live="polite"></div>
+
+            <div class="action-group action-group--primary">
+              <h4>Строительство</h4>
+              <div class="quick-action-grid">
+                <button class="button button--primary button--full action-card-button" id="build-housing-button">
+                  <span>Построить жильё</span>
+                  <strong>250 000</strong>
+                  <small>Стабильный старт</small>
+                </button>
+                <button class="button button--primary button--full action-card-button" id="build-office-button">
+                  <span>Построить офис</span>
+                  <strong>400 000</strong>
+                  <small>Максимум дохода</small>
+                </button>
+                <button class="button button--primary button--full action-card-button" id="build-retail-button">
+                  <span>Построить ритейл</span>
+                  <strong>320 000</strong>
+                  <small>Баланс цены</small>
+                </button>
+              </div>
+            </div>
+
+            <div class="action-group object-control-group">
+              <h4>Объект</h4>
+              <label class="field-label" for="upgrade-select">Выберите активный объект</label>
+              <select id="upgrade-select"></select>
+              <select class="mirror-select" id="sell-select" aria-hidden="true" tabindex="-1"></select>
+              <div class="dual-action-grid">
+                <button class="button button--secondary button--full" id="upgrade-button">Улучшить за 80 000</button>
+                <button class="button button--secondary button--full" id="sell-button">Продать</button>
+              </div>
+            </div>
+
+            <div class="action-group turn-control-group">
+              <h4>Ход и финансы</h4>
+              <div class="control-summary-grid">
+                <div class="control-summary-card" id="turn-summary-card"></div>
+                <div class="control-summary-card" id="portfolio-summary-card"></div>
+              </div>
+              <div class="loan-box" id="loan-status-box"></div>
+              <div class="dual-action-grid">
+                <button class="button button--accent button--full" id="loan-button">Взять кредит 300 000</button>
+                <button class="button button--primary button--full" id="skip-turn-button">Пропустить ход</button>
+              </div>
+            </div>
+
+            <div class="game-management-row">
+              <button class="button button--secondary button--full" id="new-game-button">Новая игра</button>
+              <button class="button button--danger button--full" id="reset-progress-button">Сбросить</button>
+            </div>
+          </aside>
+
+          <section class="city-panel panel">
+            <div class="city-panel__header">
+              <div>
+                <p class="topbar__eyebrow">Городская сцена</p>
+                <h3>Карта инвестиционного района</h3>
+              </div>
+              <div class="city-legend">
+                <span class="legend-item legend-item--housing">Жильё</span>
+                <span class="legend-item legend-item--office">Офис</span>
+                <span class="legend-item legend-item--retail">Ритейл</span>
+                <span class="legend-item legend-item--sold">Продано</span>
+              </div>
+            </div>
+
+            <div class="city-layout">
+              <div class="city-map" id="city-map" aria-label="Визуальная карта объектов недвижимости"></div>
+              <aside class="city-sidebar">
+                <div class="scene-card" id="city-market-board"></div>
+                <div class="scene-card" id="quarter-flow-board"></div>
+                <div class="scene-card" id="visual-event-board"></div>
+              </aside>
+            </div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel portfolio-panel">
+            <div class="panel-heading">
+              <h3>Портфель недвижимости</h3>
+              <p>Карточки показывают текущую эффективность объектов с учётом спроса, репутации и ставки.</p>
+            </div>
+            <div class="properties-grid" id="properties-grid"></div>
+          </section>
+
+          <aside class="panel insights-panel">
+            <div class="panel-heading">
+              <h3>События и аналитика</h3>
+              <p>После каждого квартала рынок меняется, а последние события остаются в истории.</p>
+            </div>
+
+            <section class="insight-card">
+              <h4>Последнее событие</h4>
+              <div id="latest-event-card"></div>
+            </section>
+
+            <section class="insight-card">
+              <h4>История последних 5 событий</h4>
+              <div class="event-history" id="event-history"></div>
+            </section>
+
+            <section class="insight-card">
+              <h4>Краткая сводка</h4>
+              <div class="summary-list" id="game-summary"></div>
+            </section>
+          </aside>
+        </div>
+
+        <section class="panel charts-panel">
+          <div class="panel-heading">
+            <h3>Динамика по кварталам</h3>
+          </div>
+
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-card__header">
+                <h4>Деньги</h4>
+                <span id="money-trend-label"></span>
+              </div>
+              <canvas id="money-chart" width="320" height="180"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card__header">
+                <h4>Спрос</h4>
+                <span id="demand-trend-label"></span>
+              </div>
+              <canvas id="demand-chart" width="320" height="180"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card__header">
+                <h4>Репутация</h4>
+                <span id="reputation-trend-label"></span>
+              </div>
+              <canvas id="reputation-chart" width="320" height="180"></canvas>
+            </div>
+          </div>
+
+          <div class="quarter-table-wrapper">
+            <table class="quarter-table">
+              <thead>
+                <tr>
+                  <th>Квартал</th>
+                  <th>Деньги</th>
+                  <th>Спрос</th>
+                  <th>Репутация</th>
+                  <th>Ставка</th>
+                </tr>
+              </thead>
+              <tbody id="timeline-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="info-section panel" id="rules-section">
+        <div class="panel-heading">
+          <h3>Правила</h3>
+          <p>Краткие условия игры и порядок расчёта квартала.</p>
+        </div>
+        <div class="info-grid">
+          <article class="info-card">
+            <h4>Цель</h4>
+            <p>К 20 кварталу нужны: капитал выше 2 000 000, репутация 60+, минимум 4 активных объекта, 2 улучшенных активных объекта, суммарная прибыль 700 000+ и отсутствие активного кредита.</p>
+          </article>
+          <article class="info-card">
+            <h4>Поражение</h4>
+            <p>Игра заканчивается поражением, если деньги уходят ниже нуля в любой момент после обработки квартала.</p>
+          </article>
+          <article class="info-card">
+            <h4>Действие за квартал</h4>
+            <p>Каждый ход можно только одно: строить, улучшать, продавать, брать кредит или пропускать квартал.</p>
+          </article>
+          <article class="info-card">
+            <h4>Выбор участка</h4>
+            <p>После выбора типа здания укажите свободный участок на карте. Поток района показывает общую привлекательность места, а бонус дохода зависит от типа здания, дорог, парков, променадов и соседних объектов.</p>
+          </article>
+          <article class="info-card">
+            <h4>Формула дохода</h4>
+            <p>Доход зависит от базового дохода объекта, спроса, репутации и уровня развития.</p>
+          </article>
+          <article class="info-card">
+            <h4>Кредит</h4>
+            <p>Можно иметь только один кредит одновременно. Платёж списывается автоматически в конце квартала.</p>
+          </article>
+          <article class="info-card">
+            <h4>События</h4>
+            <p>Случайные события меняют спрос, ставку и репутацию. Прямой денежный эффект зависит от активного портфеля, поэтому без объектов событие не даёт бесплатную прибыль.</p>
+          </article>
+          <article class="info-card">
+            <h4>Продажа</h4>
+            <p>Продажа учитывает рыночный спрос, уровень объекта, комиссию сделки и дисконт за слишком ранний выход из проекта.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="info-section panel" id="about-section">
+        <div class="panel-heading">
+          <h3>О проекте</h3>
+        </div>
+        <div class="about-copy">
+          <p>
+            Проект моделирует рынок недвижимости в упрощённой экономике и показывает, как решения по
+            инвестициям, кредитованию и управлению объектами влияют на капитал, репутацию и рыночные условия
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="modal is-hidden" id="endgame-modal">
+    <div class="modal__backdrop"></div>
+    <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="endgame-title">
+      <span class="modal__eyebrow" id="endgame-result-badge">Итог</span>
+      <h2 id="endgame-title">Игра завершена</h2>
+      <p class="modal__text" id="endgame-description"></p>
+      <div class="endgame-metrics" id="endgame-metrics"></div>
+      <div class="modal__actions">
+        <button class="button button--primary button--full" id="restart-from-modal-button">Начать заново</button>
+        <button class="button button--secondary button--full" id="back-to-menu-button">Вернуться в меню</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/01-config-data.js"></script>
+  <script src="js/02-dom-init.js"></script>
+  <script src="js/03-game-engine.js"></script>
+  <script src="js/04-advisor-controls.js"></script>
+  <script src="js/05-city-map.js"></script>
+  <script src="js/06-ui-rendering.js"></script>
+  <script src="js/07-storage-utils.js"></script>
+</body>
+</html>

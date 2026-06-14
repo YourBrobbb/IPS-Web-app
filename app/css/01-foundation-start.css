@@ -1,0 +1,300 @@
+/* Base variables, shared UI primitives and start screen styles. Source: style.css lines 1-300. */
+:root {
+  --bg: #eef3f1;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-strong: #ffffff;
+  --surface-muted: #f5f8f7;
+  --border: rgba(21, 39, 30, 0.08);
+  --text: #15271e;
+  --text-soft: #5a6b64;
+  --primary: #176b52;
+  --primary-strong: #0f5a44;
+  --accent: #d68c2d;
+  --danger: #c95353;
+  --success: #2b8b57;
+  --shadow: 0 20px 60px rgba(22, 50, 39, 0.08);
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Trebuchet MS", "Gill Sans", "Avenir Next", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(89, 171, 133, 0.18), transparent 34%),
+    radial-gradient(circle at right center, rgba(214, 140, 45, 0.12), transparent 28%),
+    linear-gradient(180deg, #f7faf8 0%, var(--bg) 100%);
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+.page-shell {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.main-layout {
+  display: grid;
+  gap: 24px;
+}
+
+.hero-screen {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+  padding: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 36px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 248, 246, 0.92)),
+    linear-gradient(135deg, rgba(23, 107, 82, 0.08), rgba(214, 140, 45, 0.05));
+  box-shadow: var(--shadow);
+}
+
+.hero-screen::before,
+.hero-screen::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.hero-screen::before {
+  top: -80px;
+  right: -40px;
+  width: 260px;
+  height: 260px;
+  background: rgba(23, 107, 82, 0.08);
+}
+
+.hero-screen::after {
+  bottom: -100px;
+  left: -40px;
+  width: 280px;
+  height: 280px;
+  background: rgba(214, 140, 45, 0.08);
+}
+
+.hero-screen__content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+.hero-screen__intro,
+.hero-screen__panel,
+.panel,
+.info-card,
+.chart-card,
+.metric-card,
+.insight-card,
+.property-card {
+  backdrop-filter: blur(10px);
+}
+
+.hero-screen__intro {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.eyebrow,
+.topbar__eyebrow,
+.modal__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-strong);
+  background: rgba(23, 107, 82, 0.1);
+}
+
+.hero-screen h1 {
+  margin: 14px 0 16px;
+  max-width: 12ch;
+  font-size: clamp(2.4rem, 5vw, 4.1rem);
+  line-height: 0.98;
+}
+
+.hero-screen__lead {
+  max-width: 700px;
+  margin: 0 0 28px;
+  color: var(--text-soft);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.hero-screen__actions,
+.topbar__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.save-hint {
+  min-height: 24px;
+  margin-top: 16px;
+  font-size: 0.96rem;
+  color: var(--text-soft);
+}
+
+.hero-screen__panel {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: rgba(250, 252, 251, 0.9);
+}
+
+.hero-stat {
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+}
+
+.hero-stat__label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.hero-stat__value {
+  font-size: 1.05rem;
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tag,
+.status-badge,
+.event-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.tag {
+  color: var(--primary-strong);
+  background: rgba(23, 107, 82, 0.08);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+  font-weight: 700;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(21, 39, 30, 0.1);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.button--primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+}
+
+.button--secondary {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border);
+}
+
+.button--accent {
+  color: #ffffff;
+  background: linear-gradient(135deg, #e69b3d, #c9791f);
+}
+
+.button--ghost {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.65);
+  border-color: var(--border);
+}
+
+.button--danger {
+  color: #ffffff;
+  background: linear-gradient(135deg, #d86565, #b44747);
+}
+
+.button--full {
+  width: 100%;
+}
+
+.button--small {
+  min-height: 40px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+}
+
+.panel,
+.info-card,
+.chart-card,
+.property-card,
+.insight-card,
+.metric-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  padding: 24px;
+  border-radius: var(--radius-xl);
+}
+
+.is-hidden {
+  display: none !important;
+}
